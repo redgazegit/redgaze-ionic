@@ -98,6 +98,13 @@ export class VideoPlayerComponent implements OnDestroy {
         }
       });
     });
+
+    effect(() => {
+      const activeId = this.videoState.activeGifId();
+      if (activeId && activeId !== this.gif()?.id && this.player) {
+        this.player.pause();
+      }
+    });
   }
 
   private isElementVisible(el: HTMLElement): boolean {

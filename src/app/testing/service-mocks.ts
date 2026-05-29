@@ -73,27 +73,22 @@ export class MockThemeService {
 }
 
 export class MockVideoStateService {
-  private _activeId: string | null = null;
+  readonly activeGifId = signal<string | null>(null);
 
   requestPlay = (gifId: string): boolean => {
-    if (this._activeId === null || this._activeId === gifId) {
-      this._activeId = gifId;
+    const current = this.activeGifId();
+    if (current === null || current === gifId) {
+      this.activeGifId.set(gifId);
       return true;
     }
     return false;
   };
 
   onPause = (gifId: string): void => {
-    if (this._activeId === gifId) {
-      this._activeId = null;
+    if (this.activeGifId() === gifId) {
+      this.activeGifId.set(null);
     }
   };
-
-  getActiveGifId = () => this._activeId;
-
-  setActiveGifId(id: string | null) {
-    this._activeId = id;
-  }
 }
 
 export class MockWatchQueueService {
