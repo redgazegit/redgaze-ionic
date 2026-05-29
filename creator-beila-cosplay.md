@@ -1,0 +1,30 @@
+- generic [ref=e3]:
+  - generic [ref=e6]:
+    - banner [ref=e7]:
+      - generic [ref=e9]:
+        - generic [ref=e12]:
+          - generic: beila_cosplay
+        - button [ref=e15] [cursor=pointer]:
+          - generic [ref=e16]
+    - main [ref=e17]:
+      - generic [ref=e19]:
+        - generic:
+          - generic [ref=e62]
+          - link "reddit.com" [ref=e80] [cursor=pointer]:
+            - /url: https://api.redgifs.com/v2/analytics/beila_cosplay/redirect?url=reddit.com
+          - generic [ref=e95]
+          - generic [ref=e24]
+  - tablist [ref=e27]:
+    - generic:
+      - tab "Home" [ref=e29] [cursor=pointer]:
+        - generic [ref=e30]:
+          - generic
+      - tab "Search" [ref=e38] [cursor=pointer]:
+        - generic [ref=e39]:
+          - generic
+      - tab "Favorites" [ref=e47] [cursor=pointer]:
+        - generic [ref=e48]:
+          - generic
+      - tab "Settings" [ref=e55] [cursor=pointer]:
+        - generic [ref=e56]:
+          - generic

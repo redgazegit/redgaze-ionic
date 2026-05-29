@@ -1,0 +1,61 @@
+<ion-header class="ion-no-border">
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <ion-back-button defaultHref="/home"></ion-back-button>
+    </ion-buttons>
+    @if (current(); as gif) {
+      <ion-title (click)="goToCreator()" style="cursor:pointer">@{{ gif.userName }}</ion-title>
+    }
+    <ion-buttons slot="end">
+      <ion-button (click)="toggleFav()" data-testid="stories-fav-btn">
+        <ion-icon [name]="isFav ? 'heart' : 'heart-outline'"></ion-icon>
+      </ion-button>
+      <ion-button (click)="download()" data-testid="stories-download-btn">
+        <ion-icon name="download-outline"></ion-icon>
+      </ion-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content
+  class="stories-content"
+  (touchstart)="onTouchStart($event)"
+  (touchend)="onTouchEnd($event)"
+  (keydown)="onKeyDown($event)"
+  tabindex="0"
+>
+  @if (loading()) {
+    <div class="loading-overlay">
+      <ion-spinner name="crescent"></ion-spinner>
+    </div>
+  }
+
+  <div class="progress-bar" data-testid="stories-progress">
+    <span>{{ position() }} / {{ total() }}+</span>
+  </div>
+
+  @if (current(); as gif) {
+    <div class="video-wrapper" data-testid="stories-video-wrapper">
+      <app-video-player
+        [gif]="gif"
+        [storiesMode]="true"
+      ></app-video-player>
+    </div>
+
+    <div class="gif-info" data-testid="stories-gif-info">
+      <ion-label>
+        <h2>{{ gif.userName || 'Unknown' }}</h2>
+        <p>{{ gif.createDate * 1000 | date:'medium' }}</p>
+      </ion-label>
+      @if (gif.tags.length) {
+        <div class="tags-row">
+          @for (tag of gif.tags.slice(0, 5); track tag) {
+            <ion-chip [routerLink]="['/search', tag]" color="primary" size="small">
+              {{ tag }}
+            </ion-chip>
+          }
+        </div>
+      }
+    </div>
+  }
+</ion-content>

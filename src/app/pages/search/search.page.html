@@ -1,0 +1,101 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-searchbar
+      #searchInput
+      data-testid="search-input"
+      [debounce]="300"
+      [value]="query()"
+      (ionInput)="onSearchInput($event)"
+      (ionClear)="onClear()"
+      placeholder="Search tags, creators..."
+      animated
+      showCancelButton="focus"
+      (keyup.enter)="search(searchInput.value ?? '')"
+    ></ion-searchbar>
+  </ion-toolbar>
+  <ion-toolbar>
+    <ion-segment data-testid="search-type-segment" [value]="searchType()" (ionChange)="onSearchTypeChange($event)">
+      <ion-segment-button data-testid="search-type-gifs" value="gifs">GIFs</ion-segment-button>
+      <ion-segment-button data-testid="search-type-images" value="images">Images</ion-segment-button>
+    </ion-segment>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content>
+  @if (!hasSearched && suggestions.length) {
+    <div class="suggestions">
+      <ion-list>
+        @for (s of suggestions; track s.text) {
+          <ion-item [attr.data-testid]="'suggestion-' + s.text" (click)="selectSuggestion(s.text)" detail>
+            <ion-label>
+              <h3>{{ s.text }}</h3>
+              <p>{{ s.gifs }} GIFs</p>
+            </ion-label>
+          </ion-item>
+        }
+      </ion-list>
+    </div>
+  }
+
+  @if (!hasSearched && !suggestions.length) {
+    <div data-testid="search-empty" class="empty-state">
+      <ion-icon name="search-outline" size="large"></ion-icon>
+      <p>Search for tags, creators, or niches</p>
+    </div>
+  }
+
+  @if (loading) {
+    <div class="loading-spinner">
+      <ion-spinner name="crescent"></ion-spinner>
+    </div>
+  }
+
+  @if (hasSearched && !loading) {
+    <div>
+      @if (relatedUsers.length) {
+        <ion-card data-testid="related-creators">
+          <ion-card-header><ion-card-title>Related Creators</ion-card-title></ion-card-header>
+          <ion-card-content>
+            @for (u of relatedUsers.slice(0, 5); track u.username) {
+              <ion-item [attr.data-testid]="'related-creator-' + u.username" [routerLink]="['/creator', u.username]" detail lines="full">
+                <ion-avatar slot="start">
+                  <img [src]="api.proxyUserpicUrl(u.profileImageUrl)" [alt]="u.username">
+                </ion-avatar>
+                <ion-label>
+                  <h3>{{ u.name || u.username }}</h3>
+                  <p>{{ u.followers }} followers · {{ u.publishedGifs }} GIFs</p>
+                </ion-label>
+                @if (u.verified) {
+                  <ion-badge color="primary" slot="end">Verified</ion-badge>
+                }
+              </ion-item>
+            }
+          </ion-card-content>
+        </ion-card>
+      }
+      @if (relatedTags.length) {
+        <ion-card data-testid="related-tags">
+          <ion-card-header><ion-card-title>Related Tags</ion-card-title></ion-card-header>
+          <ion-card-content>
+            @for (t of relatedTags.slice(0, 15); track t) {
+              <ion-chip [attr.data-testid]="'related-tag-' + t" [routerLink]="['/search', t]" color="primary">
+                {{ t }}
+              </ion-chip>
+            }
+          </ion-card-content>
+        </ion-card>
+      }
+      <div class="gif-grid" role="feed">
+        @for (gif of results; track gif.id; let i = $index) {
+          <app-gif-card [gif]="gif" (cardClick)="onCardClick($event, i)" (creatorClick)="onCreatorClick($event)"></app-gif-card>
+        }
+        @if (results.length === 0) {
+          <div data-testid="no-results" class="no-results">
+            <ion-icon name="sad-outline" size="large"></ion-icon>
+            <p>No results found for "{{ query() }}"</p>
+          </div>
+        }
+      </div>
+    </div>
+  }
+</ion-content>

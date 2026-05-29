@@ -1,0 +1,53 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-title>Settings</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content>
+  <ion-list>
+    <ion-list-header>Appearance</ion-list-header>
+    <ion-item data-testid="setting-dark-mode">
+      <ion-label>Dark Mode — {{ currentMode() === 'dark' ? 'ON' : 'OFF' }}</ion-label>
+      <ion-toggle data-testid="dark-mode-toggle" [checked]="currentMode() === 'dark'" (ionChange)="toggleDarkMode()"></ion-toggle>
+    </ion-item>
+
+    <ion-list-header>Playback</ion-list-header>
+    <ion-item data-testid="setting-hls">
+      <ion-label>HLS Streaming — {{ settings.playbackMode === 'hls' ? 'HLS' : 'MP4' }}</ion-label>
+      <ion-toggle data-testid="hls-toggle" [checked]="settings.playbackMode === 'hls'" (ionChange)="toggleHls()"></ion-toggle>
+    </ion-item>
+    <ion-item data-testid="setting-quality">
+      <ion-label>Quality — {{ settings.quality === 'hd' ? 'HD' : 'SD' }}</ion-label>
+      <ion-toggle data-testid="quality-toggle" [checked]="settings.quality === 'hd'" (ionChange)="toggleQuality()"></ion-toggle>
+    </ion-item>
+
+    <ion-list-header>Network</ion-list-header>
+    <ion-item data-testid="setting-rate-limit">
+      <ion-label>Rate Limiting — {{ settings.rateLimitEnabled ? 'ON' : 'OFF' }}</ion-label>
+      <ion-toggle data-testid="rate-limit-toggle" [checked]="settings.rateLimitEnabled" (ionChange)="toggleRateLimit()"></ion-toggle>
+    </ion-item>
+
+    <ion-list-header>Feed</ion-list-header>
+    <ion-item data-testid="setting-grid-autoplay">
+      <ion-label>Grid Autoplay — {{ settings.gridAutoplay ? 'ON' : 'OFF' }}</ion-label>
+      <ion-toggle data-testid="grid-autoplay-toggle" [checked]="settings.gridAutoplay" (ionChange)="toggleGridAutoplay()"></ion-toggle>
+    </ion-item>
+
+    <ion-list-header>Navigation</ion-list-header>
+    <ion-item data-testid="setting-stories-nav">
+      <ion-label>Swipe Stories — {{ settings.storiesNavigation ? 'ON' : 'OFF' }}</ion-label>
+      <ion-toggle data-testid="stories-nav-toggle" [checked]="settings.storiesNavigation" (ionChange)="toggleStoriesNav()"></ion-toggle>
+    </ion-item>
+
+    <ion-list-header>About</ion-list-header>
+    <ion-item data-testid="setting-version">
+      <ion-label>Version</ion-label>
+      <ion-note slot="end">1.0.0</ion-note>
+    </ion-item>
+    <ion-item data-testid="setting-api">
+      <ion-label>RedGIFs API</ion-label>
+      <ion-note slot="end">v2</ion-note>
+    </ion-item>
+  </ion-list>
+</ion-content>

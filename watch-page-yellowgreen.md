@@ -1,0 +1,44 @@
+- generic [ref=e3]:
+  - generic [ref=e6]:
+    - banner [ref=e7]:
+      - generic [ref=e9]:
+        - button "back" [ref=e12] [cursor=pointer]:
+          - generic [ref=e13]
+        - generic [ref=e65] [cursor=pointer]:
+          - generic: "@watchitonrepeat1"
+        - generic [ref=e14]:
+          - button "HD" [ref=e67] [cursor=pointer]
+          - button [ref=e16] [cursor=pointer]
+          - button [ref=e19] [cursor=pointer]
+    - main [ref=e21]:
+      - list [ref=e73]:
+        - listitem [ref=e74]:
+          - 'button "watchitonrepeat1 Created: May 20, 2026, 12:23:52 AM" [ref=e75] [cursor=pointer]'
+        - generic [ref=e81]:
+          - generic [ref=e82]: Tags
+          - generic [ref=e83]
+        - listitem [ref=e87]:
+          - generic [ref=e89]
+        - listitem [ref=e93]:
+          - generic [ref=e95]
+        - listitem [ref=e102]:
+          - generic [ref=e104]
+        - generic [ref=e108]:
+          - generic [ref=e109]: Content
+          - generic [ref=e111] [cursor=pointer]
+        - listitem [ref=e112]:
+          - generic [ref=e114]
+  - tablist [ref=e28]:
+    - generic:
+      - tab "Home" [ref=e30] [cursor=pointer]:
+        - generic [ref=e31]:
+          - generic
+      - tab "Search" [ref=e39] [cursor=pointer]:
+        - generic [ref=e40]:
+          - generic
+      - tab "Favorites" [ref=e48] [cursor=pointer]:
+        - generic [ref=e49]:
+          - generic
+      - tab "Settings" [ref=e56] [cursor=pointer]:
+        - generic [ref=e57]:
+          - generic

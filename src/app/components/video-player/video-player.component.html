@@ -1,0 +1,30 @@
+<div class="video-card" [class.stories-mode]="storiesMode()" [attr.data-testid]="'video-player-' + gif().id">
+  <div class="player-container">
+    <video
+      #videoPlayer
+      [src]="videoSrc()"
+      attr.poster="{{posterSrc()}}"
+      playsinline
+      muted
+      preload="metadata"
+      [class.plyr]="!storiesMode()"
+    ></video>
+  </div>
+  @if (!storiesMode()) {
+    <div class="video-info">
+      <div class="info-left">
+        @if (gif().userName) {
+          <span class="username-label" data-testid="vp-username" (click)="goToCreator($event)">@{{ gif().userName }}</span>
+        }
+      </div>
+      <div class="info-right">
+        <ion-button data-testid="vp-fav-btn" fill="clear" size="small" (click)="toggleFav()">
+          <ion-icon [name]="isFav ? 'heart' : 'heart-outline'"></ion-icon>
+        </ion-button>
+        <ion-button data-testid="vp-download-btn" fill="clear" size="small" (click)="download()">
+          <ion-icon name="download-outline"></ion-icon>
+        </ion-button>
+      </div>
+    </div>
+  }
+</div>

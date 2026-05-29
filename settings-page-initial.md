@@ -1,0 +1,59 @@
+- generic [ref=e3]:
+  - generic [ref=e6]:
+    - banner [ref=e7]:
+      - generic [ref=e12]:
+        - generic: Settings
+    - main [ref=e13]:
+      - list [ref=e16]:
+        - generic [ref=e18]:
+          - generic: Appearance
+        - listitem [ref=e19] [cursor=pointer]:
+          - generic [ref=e22]:
+            - generic:
+              - generic [ref=e23]: Dark Mode — OFF
+              - switch [ref=e24]
+        - generic [ref=e31]:
+          - generic: Playback
+        - listitem [ref=e32] [cursor=pointer]:
+          - generic [ref=e35]:
+            - generic:
+              - generic [ref=e36]: HLS Streaming — MP4
+              - switch [ref=e37]
+        - generic [ref=e44]:
+          - generic: About
+        - listitem [ref=e45]:
+          - generic [ref=e47]:
+            - generic [ref=e49]: Version
+            - generic [ref=e50]:
+              - generic: 1.0.0
+        - listitem [ref=e51]:
+          - generic [ref=e53]:
+            - generic [ref=e55]: RedGIFs API
+            - generic [ref=e56]:
+              - generic: v2
+  - tablist [ref=e57]:
+    - generic:
+      - tab "Home" [ref=e59] [cursor=pointer]:
+        - generic [ref=e60]:
+          - generic:
+            - img [ref=e61]:
+              - img [ref=e63]
+            - generic [ref=e66]: Home
+      - tab "Search" [ref=e68] [cursor=pointer]:
+        - generic [ref=e69]:
+          - generic:
+            - img [ref=e70]:
+              - img [ref=e72]
+            - generic [ref=e75]: Search
+      - tab "Favorites" [ref=e77] [cursor=pointer]:
+        - generic [ref=e78]:
+          - generic:
+            - img [ref=e79]:
+              - img [ref=e81]
+            - generic [ref=e83]: Favorites
+      - tab "Settings" [selected] [ref=e85] [cursor=pointer]:
+        - generic [ref=e86]:
+          - generic:
+            - img [ref=e87]:
+              - img [ref=e89]
+            - generic [ref=e91]: Settings

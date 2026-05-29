@@ -1,0 +1,37 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-title>Favorites</ion-title>
+    <ion-buttons slot="end">
+      <ion-button data-testid="fav-view-toggle" (click)="viewMode = viewMode === 'grid' ? 'list' : 'grid'">
+        <ion-icon [name]="viewMode === 'grid' ? 'list-outline' : 'grid-outline'"></ion-icon>
+      </ion-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content>
+  @if (favorites.length === 0) {
+    <div data-testid="fav-empty" class="empty-state">
+      <ion-icon name="heart-outline" size="large"></ion-icon>
+      <h2>No favorites yet</h2>
+      <p>Tap the heart icon on any GIF to save it here</p>
+      <ion-button data-testid="browse-gifs-btn" routerLink="/home" fill="outline">Browse GIFs</ion-button>
+    </div>
+  }
+
+  @if (viewMode === 'grid') {
+    <div class="gif-grid" role="feed">
+      @for (gif of favorites; track gif.id) {
+        <app-gif-card [gif]="gif"></app-gif-card>
+      }
+    </div>
+  }
+
+  @if (viewMode === 'list') {
+    <div class="gif-list" role="feed">
+      @for (gif of favorites; track gif.id) {
+        <app-video-player [gif]="gif"></app-video-player>
+      }
+    </div>
+  }
+</ion-content>

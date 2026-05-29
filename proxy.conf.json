@@ -1,0 +1,29 @@
+{
+  "/api/**": {
+    "target": "https://api.redgifs.com",
+    "secure": true,
+    "changeOrigin": true,
+    "pathRewrite": { "^/api": "" },
+    "logLevel": "debug"
+  },
+  "/cdn/**": {
+    "target": "https://media.redgifs.com",
+    "secure": true,
+    "changeOrigin": true,
+    "pathRewrite": { "^/cdn": "" },
+    "logLevel": "debug",
+    "headers": {
+      "Referer": "https://www.redgifs.com/"
+    }
+  },
+  "/userpic/**": {
+    "target": "https://userpic.redgifs.com",
+    "secure": true,
+    "changeOrigin": true,
+    "pathRewrite": { "^/userpic": "" },
+    "logLevel": "debug",
+    "headers": {
+      "Referer": "https://www.redgifs.com/"
+    }
+  }
+}

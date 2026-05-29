@@ -1,0 +1,139 @@
+.video-card {
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--ion-card-background);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+
+  &.stories-mode {
+    border-radius: 0;
+    box-shadow: none;
+    background: transparent;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+
+    .player-container {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+
+      video {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+      }
+    }
+  }
+}
+
+.player-container {
+  position: relative;
+  width: 100%;
+  cursor: pointer;
+
+  .video-element {
+    width: 100%;
+    max-height: 70vh;
+    object-fit: contain;
+    display: block;
+    background: black;
+  }
+
+  .play-overlay {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: white;
+    opacity: 0.8;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+  }
+
+  .video-controls {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: linear-gradient(transparent, rgba(0,0,0,0.7));
+    padding: 2rem 0.5rem 0.5rem;
+    opacity: 0;
+    transition: opacity 0.2s;
+
+    &:hover {
+      opacity: 1;
+    }
+
+    .progress-bar {
+      height: 3px;
+      background: rgba(255,255,255,0.3);
+      border-radius: 2px;
+      margin-bottom: 4px;
+
+      .progress-fill {
+        height: 100%;
+        background: var(--ion-color-primary);
+        border-radius: 2px;
+        transition: width 0.1s linear;
+      }
+    }
+
+    .controls-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+
+      .left-controls, .right-controls {
+        display: flex;
+        align-items: center;
+        gap: 0;
+      }
+
+      .username-label {
+        color: white;
+        font-size: 0.8rem;
+        margin-left: 4px;
+      }
+
+      ion-button {
+        --color: white;
+        --padding-start: 4px;
+        --padding-end: 4px;
+        height: 32px;
+      }
+    }
+  }
+
+  &:hover .video-controls {
+    opacity: 1;
+  }
+}
+
+.video-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+
+  .info-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+
+    .username-label {
+      font-size: 0.85rem;
+      font-weight: 500;
+      color: var(--ion-text-color);
+      cursor: pointer;
+
+      &:hover {
+        text-decoration: underline;
+      }
+    }
+  }
+
+  .info-right {
+    display: flex;
+    align-items: center;
+  }
+}

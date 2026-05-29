@@ -1,0 +1,12 @@
+- generic [ref=e3]:
+  - generic [ref=e6]:
+    - banner [ref=e7]:
+      - generic [ref=e9]
+    - main [ref=e17]:
+      - generic [ref=e21]
+  - tablist [ref=e242]:
+    - generic:
+      - tab "Home" [selected] [ref=e244] [cursor=pointer]
+      - tab "Search" [ref=e253] [cursor=pointer]
+      - tab "Favorites" [ref=e262] [cursor=pointer]
+      - tab "Settings" [ref=e270] [cursor=pointer]

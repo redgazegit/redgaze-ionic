@@ -1,0 +1,109 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <ion-back-button></ion-back-button>
+    </ion-buttons>
+    <ion-title data-testid="creator-title">{{ username() }}</ion-title>
+    <ion-buttons slot="end">
+      <ion-button data-testid="creator-view-toggle" (click)="toggleViewMode()">
+        <ion-icon [name]="viewMode === 'grid' ? 'list-outline' : 'grid-outline'"></ion-icon>
+      </ion-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content>
+  @if (user) {
+    <div class="profile-header">
+      <ion-avatar data-testid="creator-avatar" class="profile-avatar">
+        <img data-testid="creator-avatar-img" [src]="api.proxyUserpicUrl(user.profileImageUrl)" [alt]="user.username">
+      </ion-avatar>
+      <div class="profile-info">
+        <h2 data-testid="creator-name">{{ user.name || user.username }}
+          @if (user.verified) {
+            <ion-badge color="primary" data-testid="badge-verified">Verified</ion-badge>
+          }
+          @if (user.ageVerified) {
+            <ion-badge color="success" size="small" data-testid="badge-age-verified">Age Verified</ion-badge>
+          }
+          @if (user.kycVerified) {
+            <ion-badge color="tertiary" size="small" data-testid="badge-kyc">KYC</ion-badge>
+          }
+        </h2>
+        @if (user.description) {
+          <p class="desc" data-testid="creator-desc">{{ user.description }}</p>
+        }
+        <div class="stats" data-testid="creator-stats">
+          <ion-chip data-testid="stat-gifs"><ion-icon name="videocam-outline" slot="start"></ion-icon>{{ user.publishedGifs }} GIFs</ion-chip>
+          <ion-chip data-testid="stat-followers"><ion-icon name="people-outline" slot="start"></ion-icon>{{ user.followers | number }} Followers</ion-chip>
+          <ion-chip data-testid="stat-views"><ion-icon name="eye-outline" slot="start"></ion-icon>{{ user.views | number }} Views</ion-chip>
+          @if (user.likes) {
+            <ion-chip data-testid="stat-likes"><ion-icon name="heart-outline" slot="start"></ion-icon>{{ user.likes | number }} Likes</ion-chip>
+          }
+          @if (user.following) {
+            <ion-chip data-testid="stat-following"><ion-icon name="person-add-outline" slot="start"></ion-icon>{{ user.following }} Following</ion-chip>
+          }
+        </div>
+        @if (user.creationtime) {
+          <div class="created" data-testid="creator-created">
+            <ion-note data-testid="creator-join-date">Joined {{ user.creationtime * 1000 | date:'mediumDate' }}</ion-note>
+            @if (user.status === 'active') {
+              <ion-badge color="success" size="small" data-testid="badge-active">Active</ion-badge>
+            }
+          </div>
+        }
+      </div>
+    </div>
+  }
+
+  @if (socialLinks.length) {
+    <div class="social-links" data-testid="social-links">
+      @for (link of socialLinks; track link) {
+        <ion-item [attr.data-testid]="'social-link-' + link.domain" detail href="{{ link.url }}" target="_blank">
+          <ion-icon name="globe-outline" slot="start"></ion-icon>
+          <ion-label>{{ link.domain }}</ion-label>
+        </ion-item>
+      }
+    </div>
+  }
+
+  @if (gifs.length) {
+    <div class="sort-bar">
+      @for (opt of sortOptions; track opt) {
+        <ion-chip [color]="sortOrder() === opt.value ? 'primary' : 'medium'" (click)="setSort(opt.value)" [attr.data-testid]="'sort-' + opt.value">
+          {{ opt.label }}
+        </ion-chip>
+      }
+    </div>
+  }
+
+  @if (loading) {
+    <div class="loading-spinner">
+      <ion-spinner name="crescent"></ion-spinner>
+    </div>
+  }
+
+  @if (viewMode === 'grid') {
+    <div class="gif-grid" role="feed">
+      @for (gif of gifs; track gif.id; let i = $index) {
+        <app-gif-card [gif]="gif" (cardClick)="onCardClick($event, i)" (creatorClick)="onCreatorClick($event)"></app-gif-card>
+      }
+    </div>
+  }
+
+  @if (viewMode === 'list') {
+    <div class="gif-list" role="feed">
+      @for (gif of gifs; track gif.id) {
+        @if (ss.get().gridAutoplay) {
+          <app-video-player [gif]="gif"></app-video-player>
+        } @else {
+          <app-gif-card [gif]="gif" (cardClick)="onCardClick($event, $index)" (creatorClick)="onCreatorClick($event)"></app-gif-card>
+        }
+      }
+    </div>
+  }
+
+  <ion-infinite-scroll (ionInfinite)="loadMore()">
+    <ion-infinite-scroll-content></ion-infinite-scroll-content>
+  </ion-infinite-scroll>
+</ion-content>

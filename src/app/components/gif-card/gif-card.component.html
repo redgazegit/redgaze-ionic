@@ -1,0 +1,44 @@
+<div class="gif-card" [attr.data-testid]="'gif-card-' + gif().id"
+  (click)="onCardClick($event)">
+  <div class="card-media">
+    <img
+      [src]="posterSrc()"
+      [alt]="gif().id"
+      class="gif-thumb"
+      loading="lazy"
+    />
+    <div class="card-overlay-top">
+      @if (gif().verified) {
+        <span class="verified-badge" title="Verified" data-testid="gif-verified">
+          <ion-icon name="checkmark-circle"></ion-icon>
+        </span>
+      }
+    </div>
+    <div class="card-overlay">
+      @if (gif().duration) {
+        <span class="duration" data-testid="gif-duration">{{ gif().duration }}s</span>
+      }
+      @if (gif().urls.hd) {
+        <span class="hd-badge" data-testid="gif-hd">HD</span>
+      }
+      @if (gif().hasAudio) {
+        <span class="audio-badge" data-testid="gif-audio">Audio</span>
+      }
+      @if (gif().sexuality?.length) {
+        <span class="sexuality-badge" data-testid="gif-sexuality">
+          {{ gif().sexuality![0] }}
+        </span>
+      }
+    </div>
+    <button class="fav-btn" data-testid="gif-fav-btn" (click)="toggleFav($event)">
+      <ion-icon [name]="isFav ? 'heart' : 'heart-outline'"></ion-icon>
+    </button>
+  </div>
+  <div class="card-info">
+    @if (gif().userName) {
+      <span class="username" (click)="goToCreator($event)" data-testid="gif-username">
+        @{{ gif().userName }}
+      </span>
+    }
+  </div>
+</div>

@@ -1,0 +1,58 @@
+.stories-content {
+  --background: black;
+  outline: none;
+}
+
+.loading-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.progress-bar {
+  position: fixed;
+  top: 56px;
+  left: 0;
+  right: 0;
+  z-index: 10;
+  text-align: center;
+  color: rgba(255,255,255,0.8);
+  font-size: 0.75rem;
+  background: rgba(0,0,0,0.5);
+  padding: 3px 0;
+}
+
+.video-wrapper {
+  height: 85vh;
+  width: 100%;
+}
+
+.gif-info {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 12px;
+  background: linear-gradient(transparent, rgba(0,0,0,0.8));
+  color: white;
+
+  h2 {
+    margin: 0 0 4px;
+    font-size: 1rem;
+  }
+
+  p {
+    margin: 0 0 8px;
+    font-size: 0.8rem;
+    opacity: 0.7;
+  }
+
+  .tags-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+}

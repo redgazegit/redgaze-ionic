@@ -1,0 +1,104 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-title>RedView</ion-title>
+    <ion-buttons slot="end">
+      <ion-button data-testid="home-view-toggle" (click)="viewMode.set(viewMode() === 'grid' ? 'list' : 'grid')">
+        <ion-icon [name]="viewMode() === 'grid' ? 'list-outline' : 'grid-outline'"></ion-icon>
+      </ion-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content>
+  <ion-refresher slot="fixed" (ionRefresh)="doRefresh($event)">
+    <ion-refresher-content></ion-refresher-content>
+  </ion-refresher>
+
+  <div class="home-layout">
+    <div class="main-feed">
+      <ion-segment scrollable data-testid="home-feed-segment" [value]="selectedSection()" (ionChange)="switchSection($any($event).detail.value!)">
+        @for (s of sections; track s) {
+          <ion-segment-button [value]="s.id" [attr.data-testid]="'feed-section-' + s.id">
+            {{ s.label }}
+          </ion-segment-button>
+        }
+      </ion-segment>
+
+      @if (loading && gifs.length === 0) {
+        <div class="loading-spinner">
+          <ion-spinner name="crescent"></ion-spinner>
+        </div>
+      }
+
+      <div [class.hidden]="viewMode() !== 'grid'" class="gif-grid" role="feed">
+        @for (gif of gifs; track gif.id; let i = $index) {
+          <app-gif-card [gif]="gif" (cardClick)="onCardClick($event, i)" (creatorClick)="onCreatorClick($event)"></app-gif-card>
+        }
+      </div>
+
+      <div [class.hidden]="viewMode() !== 'list'" class="gif-list" role="feed">
+        @for (gif of gifs; track gif.id) {
+          @if (ss.get().gridAutoplay) {
+            <app-video-player [gif]="gif"></app-video-player>
+          } @else {
+            <app-gif-card [gif]="gif" (cardClick)="onCardClick($event, $index)" (creatorClick)="onCreatorClick($event)"></app-gif-card>
+          }
+        }
+      </div>
+
+      <ion-infinite-scroll #infiniteScroll (ionInfinite)="loadMore($event)">
+        <ion-infinite-scroll-content loadingText="Loading more...">
+        </ion-infinite-scroll-content>
+      </ion-infinite-scroll>
+    </div>
+
+    <div class="sidebar">
+      @if (trendingTags.length) {
+        <ion-card data-testid="sidebar-tags">
+          <ion-card-header><ion-card-title>Trending Tags</ion-card-title></ion-card-header>
+          <ion-card-content>
+            @for (tag of trendingTags; track tag) {
+              <ion-chip [routerLink]="['/search', tag.text]" color="primary" [attr.data-testid]="'trending-tag-' + tag.text">
+                {{ tag.text }}
+              </ion-chip>
+            }
+          </ion-card-content>
+        </ion-card>
+      }
+
+      @if (trendingCreators.length) {
+        <ion-card data-testid="sidebar-creators">
+          <ion-card-header><ion-card-title>Popular Creators</ion-card-title></ion-card-header>
+          <ion-card-content>
+            @for (c of trendingCreators; track c) {
+              <ion-item [routerLink]="['/creator', c.username]" detail lines="full" [attr.data-testid]="'trending-creator-' + c.username">
+                <ion-avatar slot="start">
+                  <img [src]="api.proxyUserpicUrl(c.profileImageUrl)" [alt]="c.username">
+                </ion-avatar>
+                <ion-label>
+                  <h3>{{ c.username }}</h3>
+                  @if (c.verified) {
+                    <ion-badge color="primary" size="small">Verified</ion-badge>
+                  }
+                </ion-label>
+              </ion-item>
+            }
+          </ion-card-content>
+        </ion-card>
+      }
+
+      @if (trendingNiches.length) {
+        <ion-card data-testid="sidebar-niches">
+          <ion-card-header><ion-card-title>Niches</ion-card-title></ion-card-header>
+          <ion-card-content>
+            @for (n of trendingNiches; track n) {
+              <ion-chip [routerLink]="['/niche', n.id]" color="secondary" [attr.data-testid]="'trending-niche-' + n.id">
+                {{ n.name }}
+              </ion-chip>
+            }
+          </ion-card-content>
+        </ion-card>
+      }
+    </div>
+  </div>
+</ion-content>

@@ -1,0 +1,26 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <ion-back-button></ion-back-button>
+    </ion-buttons>
+    <ion-title data-testid="niche-title">{{ nicheId() }}</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content>
+  @if (loading) {
+    <div class="loading-spinner">
+      <ion-spinner name="crescent"></ion-spinner>
+    </div>
+  }
+
+  <div class="gif-grid" role="feed">
+    @for (gif of gifs; track gif.id; let i = $index) {
+      <app-gif-card [gif]="gif" (cardClick)="onCardClick($event, i)" (creatorClick)="onCreatorClick($event)"></app-gif-card>
+    }
+  </div>
+
+  <ion-infinite-scroll (ionInfinite)="loadMore()">
+    <ion-infinite-scroll-content></ion-infinite-scroll-content>
+  </ion-infinite-scroll>
+</ion-content>

@@ -1,0 +1,62 @@
+.watch-content {
+  --background: black;
+}
+
+.video-container {
+  width: 100%;
+  max-width: 100%;
+  background: black;
+  display: flex;
+  justify-content: center;
+
+  ::ng-deep .plyr {
+    max-height: 85vh;
+    width: 100%;
+  }
+
+  ::ng-deep .plyr__video-wrapper {
+    background: black;
+  }
+}
+
+.gif-details {
+  background: var(--ion-background-color);
+
+  ion-list {
+    background: transparent;
+  }
+
+  .detail-chips {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--ion-item-border-color, var(--ion-border-color, rgba(0,0,0,0.13)));
+
+    .chip-label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--ion-color-medium);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .chips-wrap {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.35rem;
+
+      ion-chip {
+        margin: 0;
+      }
+    }
+  }
+}
+
+.loading-spinner {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 60vh;
+  color: white;
+}
