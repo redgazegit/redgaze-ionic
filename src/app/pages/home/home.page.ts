@@ -30,8 +30,8 @@ export class HomePage {
   ss = inject(SettingsService);
   private watchQueue = inject(WatchQueueService);
 
-  readonly selectedSection = signal(localStorage.getItem('redview_home_section') || 'trending');
-  readonly viewMode = signal<'grid' | 'list'>((localStorage.getItem('redview_home_view') as 'grid' | 'list') || 'grid');
+  readonly selectedSection = signal(localStorage.getItem('redgaze_home_section') || 'trending');
+  readonly viewMode = signal<'grid' | 'list'>((localStorage.getItem('redgaze_home_view') as 'grid' | 'list') || 'grid');
 
   readonly sections = [
     { id: 'trending', label: 'Trending' },
@@ -104,10 +104,10 @@ export class HomePage {
 
   constructor() {
     effect(() => {
-      localStorage.setItem('redview_home_section', this.selectedSection());
+      localStorage.setItem('redgaze_home_section', this.selectedSection());
     });
     effect(() => {
-      localStorage.setItem('redview_home_view', this.viewMode());
+      localStorage.setItem('redgaze_home_view', this.viewMode());
     });
     effect(() => {
       if (this.trendingGifsQuery.isSuccess()) {

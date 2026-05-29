@@ -23,24 +23,24 @@ describe('ThemeService', () => {
 
   it('should read mode from localStorage on creation', () => {
     service.setMode('light');
-    const storedBefore = window.localStorage.getItem('redview-theme');
+    const storedBefore = window.localStorage.getItem('redgaze-theme');
     expect(storedBefore).toBe('light');
     // Create a fresh service to verify localStorage is read on init
-    window.localStorage.setItem('redview-theme', 'dark');
+    window.localStorage.setItem('redgaze-theme', 'dark');
     const fresh = TestBed.inject(ThemeService);
     // Should still be 'light' because it's a singleton
     let mode = '';
     fresh.mode$.subscribe(m => mode = m);
     // localStorage was set to 'dark' after service creation
     // so we just verify localStorage has the value
-    expect(window.localStorage.getItem('redview-theme')).toBe('dark');
+    expect(window.localStorage.getItem('redgaze-theme')).toBe('dark');
   });
 
   it('should save mode to localStorage on setMode', () => {
     service.setMode('dark');
-    expect(window.localStorage.getItem('redview-theme')).toBe('dark');
+    expect(window.localStorage.getItem('redgaze-theme')).toBe('dark');
     service.setMode('light');
-    expect(window.localStorage.getItem('redview-theme')).toBe('light');
+    expect(window.localStorage.getItem('redgaze-theme')).toBe('light');
   });
 
   it('should emit mode changes on mode$', () => {

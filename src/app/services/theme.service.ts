@@ -20,12 +20,12 @@ export class ThemeService {
   }
 
   private loadMode(): ThemeMode {
-    return (localStorage.getItem('redview-theme') as ThemeMode) || 'system';
+    return (localStorage.getItem('redgaze-theme') as ThemeMode) || 'system';
   }
 
   setMode(mode: ThemeMode): void {
     this.modeSubject.next(mode);
-    localStorage.setItem('redview-theme', mode);
+    localStorage.setItem('redgaze-theme', mode);
     this.apply();
   }
 

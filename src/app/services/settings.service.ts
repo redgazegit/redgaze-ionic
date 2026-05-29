@@ -12,7 +12,7 @@ export interface AppSettings {
   gridAutoplay: boolean;
 }
 
-const STORAGE_KEY = 'redview-settings';
+const STORAGE_KEY = 'redgaze-settings';
 
 @Injectable({ providedIn: 'root' })
 export class SettingsService {

@@ -72,7 +72,7 @@ describe('WatchQueueService', () => {
     const gifs = [fakeGif({ id: 'a' }), fakeGif({ id: 'b' })];
     service.setQueue(gifs, 1);
     service.persistToSession();
-    const raw = window.sessionStorage.getItem('redview_watch_queue');
+    const raw = window.sessionStorage.getItem('redgaze_watch_queue');
     expect(raw).toBeTruthy();
     const data = JSON.parse(raw!);
     expect(data.buffer).toHaveLength(2);
@@ -80,7 +80,7 @@ describe('WatchQueueService', () => {
   });
 
   it('should restore from sessionStorage', () => {
-    window.sessionStorage.setItem('redview_watch_queue', JSON.stringify({
+    window.sessionStorage.setItem('redgaze_watch_queue', JSON.stringify({
       buffer: [fakeGif({ id: 'x' }), fakeGif({ id: 'y' })],
       cursor: 1
     }));

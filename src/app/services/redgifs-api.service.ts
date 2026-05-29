@@ -324,7 +324,7 @@ export class RedgifsApiService {
     const proxyUrl = this.proxyUrl(url);
     if (typeof caches === 'undefined') return proxyUrl;
     try {
-      const cache = await caches.open('redview-media-v1');
+      const cache = await caches.open('redgaze-media-v1');
       const cached = await cache.match(proxyUrl);
       if (cached) {
         const blob = await cached.blob();

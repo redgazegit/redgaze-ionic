@@ -3,7 +3,7 @@ import { expect, test } from '../../fixtures';
 test.describe('Watch Page', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/home', { waitUntil: 'load' });
-    await page.evaluate(() => localStorage.setItem('redview-settings', JSON.stringify({ storiesNavigation: false })));
+    await page.evaluate(() => localStorage.setItem('redgaze-settings', JSON.stringify({ storiesNavigation: false })));
     await page.reload({ waitUntil: 'load' });
   });
 
@@ -200,7 +200,7 @@ test.describe('Watch Page', () => {
     if (!firstGifId) { test.skip(); return; }
     const gifId = firstGifId.replace('gif-card-', '');
     await page.evaluate(() => {
-      localStorage.setItem('redview-settings', JSON.stringify({ playbackMode: 'mp4', quality: 'hd' }));
+      localStorage.setItem('redgaze-settings', JSON.stringify({ playbackMode: 'mp4', quality: 'hd' }));
     });
     await page.goto(`/watch/${gifId}`);
     await expect(page.getByTestId('video-container')).toBeVisible({ timeout: 15000 });
@@ -216,7 +216,7 @@ test.describe('Watch Page', () => {
   test('MP4 video plays correctly', async ({ page }) => {
     await page.goto('/home');
     await page.evaluate(() => {
-      localStorage.setItem('redview-settings', JSON.stringify({ playbackMode: 'mp4', quality: 'hd' }));
+      localStorage.setItem('redgaze-settings', JSON.stringify({ playbackMode: 'mp4', quality: 'hd' }));
     });
     await page.goto('/watch/briskdeepskyblueharrierhawk');
     await expect(page.getByTestId('gif-details')).toBeVisible({ timeout: 20000 });
@@ -229,7 +229,7 @@ test.describe('Watch Page', () => {
     test.setTimeout(120000);
     await page.goto('/home');
     await page.evaluate(() => {
-      localStorage.setItem('redview-settings', JSON.stringify({ playbackMode: 'mp4', quality: 'hd' }));
+      localStorage.setItem('redgaze-settings', JSON.stringify({ playbackMode: 'mp4', quality: 'hd' }));
     });
     await page.goto('/watch/briskdeepskyblueharrierhawk');
     await expect(page.getByTestId('gif-details')).toBeVisible({ timeout: 20000 });
@@ -249,7 +249,7 @@ test.describe('Watch Page', () => {
   test('video loads and plays in MP4 mode', async ({ page }) => {
     test.setTimeout(90000);
     await page.goto('/home');
-    await page.evaluate(() => localStorage.setItem('redview-settings', JSON.stringify({ playbackMode: 'mp4', quality: 'hd' })));
+    await page.evaluate(() => localStorage.setItem('redgaze-settings', JSON.stringify({ playbackMode: 'mp4', quality: 'hd' })));
     await page.goto('/watch/briskdeepskyblueharrierhawk');
     await expect(page.getByTestId('gif-details')).toBeVisible({ timeout: 20000 });
     await page.waitForFunction(() => {

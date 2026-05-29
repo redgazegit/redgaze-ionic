@@ -7,7 +7,7 @@ import type {
   HlsConfig,
 } from 'hls.js';
 
-const CACHE_NAME = 'redview-media-v1';
+const CACHE_NAME = 'redgaze-media-v1';
 
 export class CacheFragmentLoader implements Loader<FragmentLoaderContext> {
   private abortController: AbortController | null = null;

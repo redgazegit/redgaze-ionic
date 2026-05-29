@@ -33,8 +33,8 @@ export class CreatorDetailPage implements OnInit {
   private watchQueue = inject(WatchQueueService);
 
   readonly username = signal('');
-  readonly sortOrder = signal(localStorage.getItem('redview_creator_sort') || 'recent');
-  viewMode: 'grid' | 'list' = (localStorage.getItem('redview_creator_view') as 'grid' | 'list') || 'grid';
+  readonly sortOrder = signal(localStorage.getItem('redgaze_creator_sort') || 'recent');
+  viewMode: 'grid' | 'list' = (localStorage.getItem('redgaze_creator_view') as 'grid' | 'list') || 'grid';
 
   readonly sortOptions = [
     { value: 'recent', label: 'Recent' },
@@ -70,7 +70,7 @@ export class CreatorDetailPage implements OnInit {
 
   constructor() {
     effect(() => {
-      localStorage.setItem('redview_creator_sort', this.sortOrder());
+      localStorage.setItem('redgaze_creator_sort', this.sortOrder());
     });
   }
 
@@ -84,7 +84,7 @@ export class CreatorDetailPage implements OnInit {
 
   toggleViewMode(): void {
     this.viewMode = this.viewMode === 'grid' ? 'list' : 'grid';
-    localStorage.setItem('redview_creator_view', this.viewMode);
+    localStorage.setItem('redgaze_creator_view', this.viewMode);
   }
 
   loadMore(): void {

@@ -4,7 +4,7 @@ test.describe('Stories Page', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/');
     await page.evaluate(() => {
-      localStorage.setItem('redview-settings', JSON.stringify({ playbackMode: 'mp4', quality: 'hd' }));
+      localStorage.setItem('redgaze-settings', JSON.stringify({ playbackMode: 'mp4', quality: 'hd' }));
     });
   });
 

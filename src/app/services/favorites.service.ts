@@ -4,7 +4,7 @@ import { Gif } from '../models/gif.model';
 
 @Injectable({ providedIn: 'root' })
 export class FavoritesService {
-  private readonly STORAGE_KEY = 'redview-favorites';
+  private readonly STORAGE_KEY = 'redgaze-favorites';
   private favoritesSubject = new BehaviorSubject<Gif[]>([]);
   favorites$: Observable<Gif[]> = this.favoritesSubject.asObservable();
 

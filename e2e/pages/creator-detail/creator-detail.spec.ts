@@ -50,7 +50,7 @@ test.describe('Creator Detail Page', () => {
 
   test('gif card navigates to watch page', async ({ page }) => {
     await page.goto('/creator/meanddevil252');
-    await page.evaluate(() => localStorage.setItem('redview-settings', JSON.stringify({ storiesNavigation: false })));
+    await page.evaluate(() => localStorage.setItem('redgaze-settings', JSON.stringify({ storiesNavigation: false })));
     await page.reload();
     await page.locator('[data-testid^="gif-card-"]').first().waitFor({ state: 'visible', timeout: 15000 });
     const firstCard = page.locator('[data-testid^="gif-card-"]').first();

@@ -27,7 +27,7 @@ test.describe('Home Page', () => {
   });
 
   test('gif card navigates to watch page', async ({ homePage, page }) => {
-    await page.evaluate(() => localStorage.setItem('redview-settings', JSON.stringify({ storiesNavigation: false })));
+    await page.evaluate(() => localStorage.setItem('redgaze-settings', JSON.stringify({ storiesNavigation: false })));
     await page.reload();
     await expect(homePage.loadingSpinner).not.toBeVisible();
     const firstCard = homePage.gifCards.first();
@@ -149,7 +149,7 @@ test.describe('Home Page', () => {
     await page.context().addInitScript(() => {
       Object.defineProperty(navigator, 'maxTouchPoints', { get: () => 2 });
     });
-    await page.evaluate(() => localStorage.setItem('redview-settings', JSON.stringify({ storiesNavigation: false })));
+    await page.evaluate(() => localStorage.setItem('redgaze-settings', JSON.stringify({ storiesNavigation: false })));
     await homePage.goto();
     await expect(homePage.loadingSpinner).not.toBeVisible();
     const firstCard = homePage.gifCards.first();

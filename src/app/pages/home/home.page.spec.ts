@@ -90,7 +90,7 @@ describe('HomePage', () => {
     page.switchSection('popular');
     fixture.detectChanges();
     expect(page.selectedSection()).toBe('popular');
-    expect(localStorage.getItem('redview_home_section')).toBe('popular');
+    expect(localStorage.getItem('redgaze_home_section')).toBe('popular');
   });
 
   it('should return loading from trending query when trending section', () => {

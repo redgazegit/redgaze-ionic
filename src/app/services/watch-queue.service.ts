@@ -25,7 +25,7 @@ export class WatchQueueService {
   constructor() {
     effect(() => {
       if (this.total() > 0) {
-        sessionStorage.setItem('redview_watch_queue', JSON.stringify({
+        sessionStorage.setItem('redgaze_watch_queue', JSON.stringify({
           buffer: this.buffer,
           cursor: this.cursor,
         }));
@@ -82,7 +82,7 @@ export class WatchQueueService {
 
   restoreFromSession(): boolean {
     try {
-      const raw = sessionStorage.getItem('redview_watch_queue');
+      const raw = sessionStorage.getItem('redgaze_watch_queue');
       if (!raw) return false;
       const data = JSON.parse(raw);
       if (!data.buffer?.length) return false;
@@ -101,7 +101,7 @@ export class WatchQueueService {
 
   persistToSession(): void {
     try {
-      sessionStorage.setItem('redview_watch_queue', JSON.stringify({
+      sessionStorage.setItem('redgaze_watch_queue', JSON.stringify({
         buffer: this.buffer,
         cursor: this.cursor,
       }));
@@ -121,7 +121,7 @@ export class WatchQueueService {
     this.hasNext.set(false);
     this.hasPrev.set(false);
     this.loading.set(false);
-    sessionStorage.removeItem('redview_watch_queue');
+    sessionStorage.removeItem('redgaze_watch_queue');
   }
 
   private ensureBuffer(): void {

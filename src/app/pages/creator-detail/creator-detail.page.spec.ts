@@ -92,7 +92,7 @@ describe('CreatorDetailPage', () => {
     const page = createPage();
     page.toggleViewMode();
     expect(page.viewMode).toBe('list');
-    expect(localStorage.getItem('redview_creator_view')).toBe('list');
+    expect(localStorage.getItem('redgaze_creator_view')).toBe('list');
     page.toggleViewMode();
     expect(page.viewMode).toBe('grid');
   });

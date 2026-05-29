@@ -21,7 +21,7 @@ test.describe('Niche Browse Page', () => {
 
   test('gif card navigates to watch page', async ({ page }) => {
     await page.goto('/niche/legal-teens');
-    await page.evaluate(() => localStorage.setItem('redview-settings', JSON.stringify({ storiesNavigation: false })));
+    await page.evaluate(() => localStorage.setItem('redgaze-settings', JSON.stringify({ storiesNavigation: false })));
     await page.reload();
     const firstCard = page.locator('[data-testid^="gif-card-"]').first();
     await firstCard.waitFor({ state: 'visible', timeout: 15000 });
