@@ -121,7 +121,7 @@ test.describe('Home Page', () => {
   });
 
   test('page title is correct', async ({ homePage, page }) => {
-    await expect(page.locator('ion-toolbar').locator('ion-title')).toContainText('RedView');
+    await expect(page.locator('ion-toolbar').locator('ion-title')).toContainText('red-gaze');
   });
 
   test('avatar images load via userpic proxy', async ({ homePage, page }) => {

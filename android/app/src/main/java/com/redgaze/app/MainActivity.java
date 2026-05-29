@@ -1,4 +1,4 @@
-package com.redview.app;
+package com.redgaze.app;
 
 import com.getcapacitor.BridgeActivity;
 

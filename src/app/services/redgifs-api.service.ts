@@ -211,12 +211,12 @@ export class RedgifsApiService {
     );
   }
 
-  trackContentViewed(gifId: string, client = 'redview-ionic/1.0'): Observable<unknown> {
+  trackContentViewed(gifId: string, client = 'redgaze-ionic/1.0'): Observable<unknown> {
     const event: ContentViewedEvent = { gif: gifId, event: 'viewed', client };
     return this.post('/v2/metrics/gifs', event);
   }
 
-  trackViewedDuration(gifId: string, durationMs: number, client = 'redview-ionic/1.0'): Observable<unknown> {
+  trackViewedDuration(gifId: string, durationMs: number, client = 'redgaze-ionic/1.0'): Observable<unknown> {
     const event: ViewedDurationEvent = { gif: gifId, event: 'duration', duration: durationMs, client };
     return this.post('/v2/metrics/gifs', event);
   }

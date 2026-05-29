@@ -271,7 +271,7 @@ describe('RedgifsApiService', () => {
     flushAuth();
     const req = httpCtrl.expectOne('/api/v2/metrics/gifs');
     expect(req.request.method).toBe('POST');
-    expect(req.request.body).toEqual({ gif: 'gif-1', event: 'viewed', client: 'redview-ionic/1.0' });
+    expect(req.request.body).toEqual({ gif: 'gif-1', event: 'viewed', client: 'redgaze-ionic/1.0' });
     req.flush({});
   });
 
@@ -281,7 +281,7 @@ describe('RedgifsApiService', () => {
     flushAuth();
     const req = httpCtrl.expectOne('/api/v2/metrics/gifs');
     expect(req.request.method).toBe('POST');
-    expect(req.request.body).toEqual({ gif: 'gif-1', event: 'duration', duration: 5000, client: 'redview-ionic/1.0' });
+    expect(req.request.body).toEqual({ gif: 'gif-1', event: 'duration', duration: 5000, client: 'redgaze-ionic/1.0' });
     req.flush({});
   });
 

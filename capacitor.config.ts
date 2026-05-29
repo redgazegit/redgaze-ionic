@@ -1,8 +1,8 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.redview.app',
-  appName: 'RedView',
+  appId: 'com.redgaze.app',
+  appName: 'red-gaze',
   webDir: 'www',
   server: {
     androidScheme: 'https',
