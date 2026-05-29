@@ -8,6 +8,7 @@ import { CacheFragmentLoader } from '../../services/hls-cache-loader';
 import { RedgifsApiService } from '../../services/redgifs-api.service';
 import { FavoritesService } from '../../services/favorites.service';
 import { SettingsService, QualityPref } from '../../services/settings.service';
+import { VideoStateService } from '../../services/video-state.service';
 import { Gif } from '../../models/gif.model';
 import { IonicModule } from '@ionic/angular';
 import { DatePipe } from '@angular/common';
@@ -29,6 +30,7 @@ export class WatchPage implements OnInit, OnDestroy {
   api = inject(RedgifsApiService);
   favService = inject(FavoritesService);
   private settings = inject(SettingsService);
+  private videoState = inject(VideoStateService);
 
   private readonly videoRef = viewChild<ElementRef<HTMLVideoElement>>('videoPlayer');
 
@@ -217,6 +219,8 @@ export class WatchPage implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.sendDuration();
+    this.videoRef()?.nativeElement?.pause();
+    this.videoState.onPause(this.gif?.id || '');
     this.hls?.destroy();
     this.player?.destroy();
     this.blobUrls.forEach(url => URL.revokeObjectURL(url));
