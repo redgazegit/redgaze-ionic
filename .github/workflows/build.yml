@@ -50,6 +50,9 @@ jobs:
           name: android-apk
           path: android/app/build/outputs/apk/debug/*.apk
 
+      - name: Debug build output
+        run: ls -la www/ || echo "www/ not found"; ls -la www/*/index.html 2>/dev/null || echo "no index in subdirs"
+
       - name: Setup Pages
         uses: actions/configure-pages@v5
 
