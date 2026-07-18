@@ -50,16 +50,13 @@ jobs:
           name: android-apk
           path: android/app/build/outputs/apk/debug/*.apk
 
-      - name: Debug build output
-        run: ls -la www/ || echo "www/ not found"; ls -la www/*/index.html 2>/dev/null || echo "no index in subdirs"
-
       - name: Setup Pages
         uses: actions/configure-pages@v5
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: www/browser
+          path: www
 
       - name: Deploy to Pages
         if: github.ref == 'refs/heads/master' && github.event_name == 'push'
