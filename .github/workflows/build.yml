@@ -59,7 +59,7 @@ jobs:
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: dist/pages/browser
+          path: dist/pages
 
       - name: Deploy to Pages
         if: github.ref == 'refs/heads/master' && github.event_name == 'push'
