@@ -50,13 +50,16 @@ jobs:
           name: android-apk
           path: android/app/build/outputs/apk/debug/*.apk
 
+      - name: Build for Pages (with base href)
+        run: npm run build -- --base-href /redview-git/ --output-path dist/pages
+
       - name: Setup Pages
         uses: actions/configure-pages@v5
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: www
+          path: dist/pages/browser
 
       - name: Deploy to Pages
         if: github.ref == 'refs/heads/master' && github.event_name == 'push'
