@@ -38,6 +38,11 @@ jobs:
       - name: Build web app
         run: npm run build
 
+      - name: Fix base href for Pages
+        run: |
+          index=$(find www -name index.html | head -1)
+          sed -i 's|<base href="/">|<base href="/redview-git/">|' "$index"
+
       - name: Sync Capacitor
         run: npx cap sync android
 
@@ -50,16 +55,20 @@ jobs:
           name: android-apk
           path: android/app/build/outputs/apk/debug/*.apk
 
-      - name: Build for Pages (with base href)
-        run: npm run build -- --base-href /redview-git/ --output-path dist/pages
-
       - name: Setup Pages
         uses: actions/configure-pages@v5
+
+      - name: Detect Pages output path
+        id: pages-path
+        run: |
+          if [ -f www/index.html ]; then echo "path=www" >> $GITHUB_OUTPUT
+          elif [ -f www/browser/index.html ]; then echo "path=www/browser" >> $GITHUB_OUTPUT
+          else echo "path=www" >> $GITHUB_OUTPUT; fi
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: dist/pages
+          path: ${{ steps.pages-path.outputs.path }}
 
       - name: Deploy to Pages
         if: github.ref == 'refs/heads/master' && github.event_name == 'push'
