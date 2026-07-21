@@ -6,6 +6,7 @@ import type {
   LoaderStats,
   HlsConfig,
 } from 'hls.js';
+import { Capacitor, CapacitorHttp, HttpResponse } from '@capacitor/core';
 
 const CACHE_NAME = 'redgaze-media-v1';
 
@@ -55,6 +56,31 @@ export class CacheFragmentLoader implements Loader<FragmentLoaderContext> {
         init.headers = {
           Range: `bytes=${context.rangeStart ?? 0}-${context.rangeEnd - 1}`,
         };
+      }
+
+      if (Capacitor.isNativePlatform()) {
+        const headers: Record<string, string> = {};
+        if (context.rangeEnd != null) {
+          headers['Range'] = `bytes=${context.rangeStart ?? 0}-${context.rangeEnd - 1}`;
+        }
+        const res: HttpResponse = await CapacitorHttp.request({
+          url,
+          method: 'GET',
+          headers,
+          responseType: 'arraybuffer',
+        });
+        if (res.status < 200 || res.status >= 300) throw new Error(`HTTP ${res.status}`);
+        const base64 = res.data as string;
+        const byteChars = atob(base64);
+        const bytes = new Uint8Array(byteChars.length);
+        for (let i = 0; i < byteChars.length; i++) {
+          bytes[i] = byteChars.charCodeAt(i);
+        }
+        this.stats.loaded = bytes.byteLength;
+        this.stats.total = bytes.byteLength;
+        this.stats.loading.end = performance.now();
+        callbacks.onSuccess({ url, data: bytes.buffer as ArrayBuffer, code: res.status }, this.stats, context, null);
+        return;
       }
 
       if (typeof caches === 'undefined') {

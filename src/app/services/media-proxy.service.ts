@@ -63,22 +63,67 @@ export class MediaProxyService {
   }
 
   async proxyM3u8(url: string, authToken: string): Promise<string> {
-    if (!Capacitor.isNativePlatform()) return url;
-    try {
-      const res: HttpResponse = await CapacitorHttp.request({
-        url,
-        method: 'GET',
-        headers: { Authorization: `Bearer ${authToken}` },
-        responseType: 'text',
+    let m3u8: string;
+
+    if (!Capacitor.isNativePlatform()) {
+      const resp = await fetch(url, {
+        headers: { Authorization: `Bearer ${authToken}` }
       });
-      let m3u8 = res.data as string;
-      m3u8 = m3u8.replace(/https:\/\/media\.redgifs\.com\//g, 'https://media.redgifs.com/');
-      const blob = new Blob([m3u8], { type: 'application/vnd.apple.mpegurl' });
-      return URL.createObjectURL(blob);
-    } catch (err) {
-      console.error('[MediaProxy] m3u8 fetch failed:', url, err);
-      throw err;
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      m3u8 = await resp.text();
+    } else {
+      try {
+        const res: HttpResponse = await CapacitorHttp.request({
+          url,
+          method: 'GET',
+          headers: { Authorization: `Bearer ${authToken}` },
+          responseType: 'text',
+        });
+        m3u8 = res.data as string;
+      } catch (err) {
+        console.error('[MediaProxy] m3u8 fetch failed:', url, err);
+        throw err;
+      }
     }
+
+    const blob = new Blob([m3u8], { type: 'application/vnd.apple.mpegurl' });
+    return URL.createObjectURL(blob);
+  }
+
+  async proxyTsSegment(url: string, rangeStart?: number, rangeEnd?: number): Promise<ArrayBuffer> {
+    if (!Capacitor.isNativePlatform()) {
+      const init: RequestInit = {};
+      if (rangeEnd != null) {
+        init.headers = {
+          Range: `bytes=${rangeStart ?? 0}-${rangeEnd - 1}`,
+        };
+      }
+      const response = await fetch(url, init);
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      return response.arrayBuffer();
+    }
+
+    const headers: Record<string, string> = {};
+    if (rangeEnd != null) {
+      headers['Range'] = `bytes=${rangeStart ?? 0}-${rangeEnd - 1}`;
+    }
+
+    const res: HttpResponse = await CapacitorHttp.request({
+      url,
+      method: 'GET',
+      headers,
+      responseType: 'arraybuffer',
+    });
+
+    if (res.status < 200 || res.status >= 300) throw new Error(`HTTP ${res.status}`);
+
+    const base64 = res.data as string;
+    const byteChars = atob(base64);
+    const bytes = new Uint8Array(byteChars.length);
+    for (let i = 0; i < byteChars.length; i++) {
+      bytes[i] = byteChars.charCodeAt(i);
+    }
+    return bytes.buffer as ArrayBuffer;
   }
 
   private base64ToBlob(base64: string, contentType: string): Blob {

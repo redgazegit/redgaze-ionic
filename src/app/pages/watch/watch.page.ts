@@ -6,6 +6,7 @@ import Plyr from 'plyr';
 import Hls from 'hls.js';
 import { CacheFragmentLoader } from '../../services/hls-cache-loader';
 import { RedgifsApiService } from '../../services/redgifs-api.service';
+import { MediaProxyService } from '../../services/media-proxy.service';
 import { FavoritesService } from '../../services/favorites.service';
 import { SettingsService, QualityPref } from '../../services/settings.service';
 import { VideoStateService } from '../../services/video-state.service';
@@ -28,6 +29,7 @@ export class WatchPage implements OnInit, OnDestroy {
   private route = inject(ActivatedRoute);
   private router = inject(Router);
   api = inject(RedgifsApiService);
+  private mediaProxy = inject(MediaProxyService);
   favService = inject(FavoritesService);
   private settings = inject(SettingsService);
   private videoState = inject(VideoStateService);
@@ -126,13 +128,7 @@ export class WatchPage implements OnInit, OnDestroy {
 
     try {
       const token = await this.api.ensureAuthToken();
-      const resp = await fetch(this.api.hlsUrl(this.gif.id, this.quality), {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      let m3u8 = await resp.text();
-      m3u8 = m3u8.replace(/https:\/\/media\.redgifs\.com\//g, this.api.proxyUrl('https://media.redgifs.com/'));
-      const blob = new Blob([m3u8], { type: 'application/vnd.apple.mpegurl' });
-      const blobUrl = URL.createObjectURL(blob);
+      const blobUrl = await this.mediaProxy.proxyM3u8(this.api.hlsUrl(this.gif.id, this.quality), token);
       this.blobUrls.push(blobUrl);
 
       this.hls = new Hls({ fLoader: CacheFragmentLoader as any });
