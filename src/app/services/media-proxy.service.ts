@@ -8,63 +8,17 @@ export class MediaProxyService {
   private progressiveStreams = new Map<string, { abortController: AbortController }>();
 
   async proxyImage(url: string): Promise<string> {
-    console.log('[MediaProxy] proxyImage called:', url?.substring(0, 80));
-    if (!Capacitor.isNativePlatform()) {
-      console.log('[MediaProxy] not native, returning raw url');
-      return url;
-    }
-    const cached = this.cache.get(url);
-    if (cached) {
-      console.log('[MediaProxy] cached hit');
-      return cached;
-    }
-
-    try {
-      console.log('[MediaProxy] fetching via CapacitorHttp arraybuffer');
-      const res: HttpResponse = await CapacitorHttp.request({
-        url,
-        method: 'GET',
-        responseType: 'arraybuffer',
-      });
-      console.log('[MediaProxy] response status:', res.status, 'type:', typeof res.data);
-      const base64 = res.data as string;
-      const contentType = typeof res.headers === 'object' && res.headers ? (res.headers as Record<string, string>)['content-type'] || 'image/jpeg' : 'image/jpeg';
-      const blob = this.base64ToBlob(base64, contentType);
-      const blobUrl = URL.createObjectURL(blob);
-      this.cache.set(url, blobUrl);
-      console.log('[MediaProxy] blob url created:', blobUrl?.substring(0, 40));
-      return blobUrl;
-    } catch (err) {
-      console.error('[MediaProxy] fetch failed, falling back:', url, err);
-      return url;
-    }
+    if (Capacitor.isNativePlatform()) return url;
+    return url;
   }
 
   async proxyVideo(url: string): Promise<string> {
     if (!Capacitor.isNativePlatform()) return url;
-    const cached = this.cache.get(url);
-    if (cached) return cached;
-
-    try {
-      const res: HttpResponse = await CapacitorHttp.request({
-        url,
-        method: 'GET',
-        responseType: 'arraybuffer',
-      });
-      const base64 = res.data as string;
-      const contentType = res.headers['content-type'] || 'video/mp4';
-      const blob = this.base64ToBlob(base64, contentType);
-      const blobUrl = URL.createObjectURL(blob);
-      this.cache.set(url, blobUrl);
-      return blobUrl;
-    } catch (err) {
-      console.error('[MediaProxy] video fetch failed:', url, err);
-      return url;
-    }
+    return url;
   }
 
   async proxyVideoProgressive(url: string): Promise<string> {
-    if (!Capacitor.isNativePlatform()) return url;
+    if (Capacitor.isNativePlatform()) return url;
 
     const cached = this.cache.get(url);
     if (cached) return cached;
@@ -172,6 +126,7 @@ export class MediaProxyService {
       });
       if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
       m3u8 = await resp.text();
+      m3u8 = m3u8.replace(/https:\/\/media\.redgifs\.com\//g, `${location.origin}/cdn/`);
     } else {
       try {
         const res: HttpResponse = await CapacitorHttp.request({
@@ -221,10 +176,6 @@ export class MediaProxyService {
     return this.base64ToArrayBuffer(res.data as string);
   }
 
-  private base64ToBlob(base64: string, contentType: string): Blob {
-    return new Blob([this.base64ToArrayBuffer(base64)], { type: contentType });
-  }
-
   private base64ToArrayBuffer(base64: string): ArrayBuffer {
     const byteChars = atob(base64);
     const bytes = new Uint8Array(byteChars.length);
@@ -261,9 +212,9 @@ export class MediaProxyService {
     if (res.status !== 206) throw new Error(`HTTP ${res.status}`);
 
     const data = this.base64ToArrayBuffer(res.data as string);
-    const totalSize = this.parseTotalSize(
-      (res.headers as Record<string, string>)?.['content-range'] ?? null
-    );
+    const h = (res.headers ?? {}) as Record<string, string>;
+    const contentRange = h['content-range'] || h['Content-Range'] || h['CONTENT-RANGE'] || null;
+    const totalSize = this.parseTotalSize(contentRange);
     return { data, totalSize };
   }
 
