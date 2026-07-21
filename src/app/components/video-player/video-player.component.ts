@@ -1,9 +1,11 @@
 import { Component, viewChild, ElementRef, OnDestroy, inject, signal, input, effect, ChangeDetectionStrategy } from '@angular/core';
 import { Router } from '@angular/router';
 import Plyr from 'plyr';
+import { Capacitor } from '@capacitor/core';
 import { Gif } from '../../models/gif.model';
 import { FavoritesService } from '../../services/favorites.service';
 import { RedgifsApiService } from '../../services/redgifs-api.service';
+import { MediaProxyService } from '../../services/media-proxy.service';
 import { SettingsService } from '../../services/settings.service';
 import { VideoStateService } from '../../services/video-state.service';
 
@@ -19,6 +21,7 @@ import { IonButton, IonIcon } from '@ionic/angular/standalone';
 export class VideoPlayerComponent implements OnDestroy {
   favService = inject(FavoritesService);
   api = inject(RedgifsApiService);
+  private mediaProxy = inject(MediaProxyService);
   private router = inject(Router);
   private settings = inject(SettingsService);
 
@@ -44,28 +47,31 @@ export class VideoPlayerComponent implements OnDestroy {
       const isStories = this.storiesMode();
       const prefHd = this.settings.get().quality === 'hd';
       const rawUrl = prefHd ? (gif.urls.hd || gif.urls.sd || '') : (gif.urls.sd || gif.urls.hd || '');
-      this.posterSrc.set(this.api.proxyUrl(gif.urls.thumbnail || ''));
-      this.videoSrc.set(this.api.proxyUrl(rawUrl));
+      const thumb = gif.urls.thumbnail || '';
 
-      if (isStories) {
-        videoEl.play().catch(() => {});
+      if (Capacitor.isNativePlatform()) {
+        this.mediaProxy.proxyImage(thumb).then(url => this.posterSrc.set(url));
+        this.mediaProxy.proxyVideo(rawUrl).then(url => {
+          this.videoSrc.set(url);
+          this.blobUrls.push(url);
+        });
+      } else {
+        this.posterSrc.set(this.api.proxyUrl(thumb));
+        this.videoSrc.set(this.api.proxyUrl(rawUrl));
         this.api.cachedMediaUrl(rawUrl).then(cachedUrl => {
           if (cachedUrl !== this.videoSrc()) {
             this.videoSrc.set(cachedUrl);
             this.blobUrls.push(cachedUrl);
           }
         });
+      }
+
+      if (isStories) {
+        videoEl.play().catch(() => {});
         return;
       }
 
       if (this.player) return;
-
-      this.api.cachedMediaUrl(rawUrl).then(cachedUrl => {
-        if (cachedUrl !== this.videoSrc()) {
-          this.videoSrc.set(cachedUrl);
-          this.blobUrls.push(cachedUrl);
-        }
-      });
 
       this.player = new Plyr(videoEl, {
         controls: ['play', 'progress', 'current-time', 'mute', 'fullscreen'],
@@ -136,7 +142,7 @@ export class VideoPlayerComponent implements OnDestroy {
     const prefHd = this.settings.get().quality === 'hd';
     const url = prefHd ? (gif.urls.hd || gif.urls.sd) : (gif.urls.sd || gif.urls.hd);
     const a = document.createElement('a');
-    a.href = this.api.proxyUrl(url || '');
+    a.href = url || '';
     a.download = `${gif.id}.mp4`;
     a.click();
   }

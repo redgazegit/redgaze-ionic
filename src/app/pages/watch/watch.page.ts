@@ -4,6 +4,7 @@ import { injectQuery, injectMutation } from '@tanstack/angular-query-experimenta
 import { firstValueFrom } from 'rxjs';
 import Plyr from 'plyr';
 import Hls from 'hls.js';
+import { Capacitor } from '@capacitor/core';
 import { CacheFragmentLoader } from '../../services/hls-cache-loader';
 import { RedgifsApiService } from '../../services/redgifs-api.service';
 import { MediaProxyService } from '../../services/media-proxy.service';
@@ -31,6 +32,7 @@ export class WatchPage implements OnInit, OnDestroy {
   api = inject(RedgifsApiService);
   private mediaProxy = inject(MediaProxyService);
   favService = inject(FavoritesService);
+  private mediaProxy = inject(MediaProxyService);
   private settings = inject(SettingsService);
   private videoState = inject(VideoStateService);
 
@@ -68,7 +70,16 @@ export class WatchPage implements OnInit, OnDestroy {
 
     this.quality = settings.get().quality;
     effect(() => {
-      if (this.gif && this.videoRef()?.nativeElement && !this.player) {
+      const g = this.gif;
+      if (g) {
+        const thumb = g.urls.thumbnail || '';
+        if (Capacitor.isNativePlatform()) {
+          this.mediaProxy.proxyImage(thumb).then(url => this.posterSrc.set(url));
+        } else {
+          this.posterSrc.set(this.api.proxyUrl(thumb));
+        }
+      }
+      if (g && this.videoRef()?.nativeElement && !this.player) {
         this.initPlayer();
       }
     });
@@ -81,9 +92,7 @@ export class WatchPage implements OnInit, OnDestroy {
     }
   }
 
-  get posterSrc(): string {
-    return this.api.proxyUrl(this.gif?.urls.thumbnail || '');
-  }
+  readonly posterSrc = signal('');
 
   get hasHd(): boolean {
     return !!this.gif?.urls.hd;
@@ -104,16 +113,21 @@ export class WatchPage implements OnInit, OnDestroy {
     }
   }
 
-  private loadMp4(): void {
+  private async loadMp4(): Promise<void> {
     const video = this.videoRef()?.nativeElement;
     if (!video || !this.gif) return;
     const rawUrl = this.quality === 'hd' ? this.gif.urls.hd : this.gif.urls.sd;
-    video.src = this.api.proxyUrl(rawUrl || '');
-    this.api.cachedMediaUrl(rawUrl || '').then(cachedUrl => {
-      if (cachedUrl !== video.src) {
-        video.src = cachedUrl;
-      }
-    });
+    const url = rawUrl || '';
+    if (Capacitor.isNativePlatform()) {
+      video.src = await this.mediaProxy.proxyVideo(url);
+    } else {
+      video.src = this.api.proxyUrl(url);
+      this.api.cachedMediaUrl(url).then(cachedUrl => {
+        if (cachedUrl !== video.src) {
+          video.src = cachedUrl;
+        }
+      });
+    }
     const play = () => video.play().catch(() => {});
     video.readyState >= 2 ? play() : video.addEventListener('canplay', play, { once: true });
   }
@@ -173,7 +187,17 @@ export class WatchPage implements OnInit, OnDestroy {
     }
 
     const rawUrl = this.quality === 'hd' ? this.gif.urls.hd : this.gif.urls.sd;
-    video.src = this.api.proxyUrl(rawUrl || '');
+    const url = rawUrl || '';
+    if (Capacitor.isNativePlatform()) {
+      video.src = await this.mediaProxy.proxyVideo(url);
+    } else {
+      video.src = this.api.proxyUrl(url);
+      this.api.cachedMediaUrl(url).then(cachedUrl => {
+        if (cachedUrl !== video.src) {
+          video.src = cachedUrl;
+        }
+      });
+    }
     this.player = new Plyr(video, {
       controls: [
         'play-large', 'play', 'progress', 'current-time',
@@ -183,16 +207,9 @@ export class WatchPage implements OnInit, OnDestroy {
       hideControls: true,
       clickToPlay: true,
     });
-    if (!video.hasAttribute('poster')) video.poster = this.posterSrc;
+    if (!video.hasAttribute('poster')) video.poster = this.posterSrc();
 
     this.setupTracking();
-    this.api.cachedMediaUrl(rawUrl || '').then(cachedUrl => {
-      if (cachedUrl !== video.src) {
-        video.src = cachedUrl;
-        const resume = () => video.play().catch(() => {});
-        video.readyState >= 2 ? resume() : video.addEventListener('canplay', resume, { once: true });
-      }
-    });
     this.player.on('ready', () => {
       this.player?.play();
     });
@@ -225,9 +242,8 @@ export class WatchPage implements OnInit, OnDestroy {
   download(): void {
     if (!this.gif) return;
     const url = this.quality === 'hd' ? this.gif.urls.hd : this.gif.urls.sd;
-    const proxied = this.api.proxyUrl(url || '');
     const a = document.createElement('a');
-    a.href = proxied;
+    a.href = url || '';
     a.download = `${this.gif.id}.mp4`;
     a.click();
   }

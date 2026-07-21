@@ -66,7 +66,7 @@ export class StoriesPage implements OnInit, OnDestroy {
     const prefHd = true;
     const url = prefHd ? (gif.urls.hd || gif.urls.sd || '') : (gif.urls.sd || gif.urls.hd || '');
     const a = document.createElement('a');
-    a.href = this.api.proxyUrl(url);
+    a.href = url;
     a.download = `${gif.id}.mp4`;
     a.click();
   }
