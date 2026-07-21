@@ -7,13 +7,13 @@ import { RedgifsApiService } from '../../services/redgifs-api.service';
 import { SettingsService } from '../../services/settings.service';
 import { VideoStateService } from '../../services/video-state.service';
 
-import { IonicModule } from '@ionic/angular';
+import { IonButton, IonIcon } from '@ionic/angular/standalone';
 
 @Component({
     selector: 'app-video-player',
     templateUrl: './video-player.component.html',
     styleUrls: ['./video-player.component.scss'],
-    imports: [IonicModule],
+    imports: [IonButton, IonIcon],
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class VideoPlayerComponent implements OnDestroy {

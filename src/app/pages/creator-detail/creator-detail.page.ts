@@ -7,7 +7,7 @@ import { SettingsService } from '../../services/settings.service';
 import { WatchQueueService } from '../../services/watch-queue.service';
 import { creatorFeedGenerator } from '../../services/feed-generators';
 import { Gif, User } from '../../models/gif.model';
-import { IonicModule } from '@ionic/angular';
+import { IonAvatar, IonBackButton, IonBadge, IonButton, IonButtons, IonChip, IonContent, IonHeader, IonIcon, IonInfiniteScroll, IonInfiniteScrollContent, IonItem, IonLabel, IonNote, IonSpinner, IonTitle, IonToolbar } from '@ionic/angular/standalone';
 import { DecimalPipe, DatePipe } from '@angular/common';
 import { GifCardComponent } from '../../components/gif-card/gif-card.component';
 import { VideoPlayerComponent } from '../../components/video-player/video-player.component';
@@ -17,7 +17,7 @@ import { VideoPlayerComponent } from '../../components/video-player/video-player
     templateUrl: './creator-detail.page.html',
     styleUrls: ['./creator-detail.page.scss'],
     imports: [
-    IonicModule,
+    IonAvatar, IonBackButton, IonBadge, IonButton, IonButtons, IonChip, IonContent, IonHeader, IonIcon, IonInfiniteScroll, IonInfiniteScrollContent, IonItem, IonLabel, IonNote, IonSpinner, IonTitle, IonToolbar,
     GifCardComponent,
     VideoPlayerComponent,
     DecimalPipe,
@@ -66,7 +66,16 @@ export class CreatorDetailPage implements OnInit {
   get gifs(): Gif[] { return this.gifsQuery.data()?.pages.reduce((acc: Gif[], p) => [...acc, ...p.gifs], [] as Gif[]) ?? []; }
   get loading(): boolean { return this.gifsQuery.isLoading(); }
   get hasMore(): boolean { return this.gifsQuery.hasNextPage(); }
-  get socialLinks(): { domain: string; url: string }[] { return this.user?.links || []; }
+  get socialLinks(): { domain: string; url: string }[] {
+    const links = this.user?.links || [];
+    const seen = new Set<string>();
+    return links.filter(l => {
+      const key = `${l.domain}|${l.url}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }
 
   constructor() {
     effect(() => {

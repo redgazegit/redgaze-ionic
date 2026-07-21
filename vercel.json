@@ -1,0 +1,23 @@
+{
+  "buildCommand": "npx ng build",
+  "outputDirectory": "www",
+  "installCommand": "npm install --legacy-peer-deps",
+  "rewrites": [
+    {
+      "source": "/cdn/:path*",
+      "destination": "/api/proxy/cdn/:path*"
+    },
+    {
+      "source": "/userpic/:path*",
+      "destination": "/api/proxy/userpic/:path*"
+    },
+    {
+      "source": "/api/:path*",
+      "destination": "https://api.redgifs.com/:path*"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}

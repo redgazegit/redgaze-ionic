@@ -1,13 +1,13 @@
 import { Component, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { ThemeService, ThemeMode } from '../../services/theme.service';
 import { SettingsService, PlaybackMode, QualityPref } from '../../services/settings.service';
-import { IonicModule } from '@ionic/angular';
+import { IonContent, IonHeader, IonItem, IonLabel, IonList, IonListHeader, IonNote, IonTitle, IonToggle, IonToolbar } from '@ionic/angular/standalone';
 
 @Component({
     selector: 'app-settings',
     templateUrl: './settings.page.html',
     styleUrls: ['./settings.page.scss'],
-    imports: [IonicModule],
+    imports: [IonContent, IonHeader, IonItem, IonLabel, IonList, IonListHeader, IonNote, IonTitle, IonToggle, IonToolbar],
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class SettingsPage {

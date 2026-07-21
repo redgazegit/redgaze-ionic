@@ -10,7 +10,7 @@ import { FavoritesService } from '../../services/favorites.service';
 import { SettingsService, QualityPref } from '../../services/settings.service';
 import { VideoStateService } from '../../services/video-state.service';
 import { Gif } from '../../models/gif.model';
-import { IonicModule } from '@ionic/angular';
+import { IonBackButton, IonBadge, IonButton, IonButtons, IonChip, IonContent, IonHeader, IonIcon, IonItem, IonLabel, IonList, IonNote, IonSpinner, IonTitle, IonToolbar } from '@ionic/angular/standalone';
 import { DatePipe } from '@angular/common';
 
 @Component({
@@ -18,7 +18,7 @@ import { DatePipe } from '@angular/common';
     templateUrl: './watch.page.html',
     styleUrls: ['./watch.page.scss'],
     imports: [
-    IonicModule,
+    IonBackButton, IonBadge, IonButton, IonButtons, IonChip, IonContent, IonHeader, IonIcon, IonItem, IonLabel, IonList, IonNote, IonSpinner, IonTitle, IonToolbar,
     DatePipe,
     RouterLink
 ],
@@ -130,7 +130,7 @@ export class WatchPage implements OnInit, OnDestroy {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       let m3u8 = await resp.text();
-      m3u8 = m3u8.replace(/https:\/\/media\.redgifs\.com\//g, `${location.origin}/cdn/`);
+      m3u8 = m3u8.replace(/https:\/\/media\.redgifs\.com\//g, this.api.proxyUrl('https://media.redgifs.com/'));
       const blob = new Blob([m3u8], { type: 'application/vnd.apple.mpegurl' });
       const blobUrl = URL.createObjectURL(blob);
       this.blobUrls.push(blobUrl);

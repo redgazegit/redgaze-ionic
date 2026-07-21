@@ -3,6 +3,7 @@ import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Observable, from, of, throwError, timer } from 'rxjs';
 import { switchMap, map, tap, catchError } from 'rxjs/operators';
 import { SettingsService } from './settings.service';
+import { API_CONFIG } from './api-config';
 import {
   Gif, Creator, User, Niche, TagSuggestion,
   SearchResult, CreatorResult, NicheResult, TempToken,
@@ -13,11 +14,8 @@ import {
 export class RedgifsApiService {
   private http = inject(HttpClient);
   private settings = inject(SettingsService);
+  private config = inject(API_CONFIG);
 
-  private readonly redgifsDomain = 'https://www.redgifs.com';
-  private readonly embedDomain = 'https://i.redgifs.com';
-  private readonly cdnDomain = 'https://media.redgifs.com';
-  private readonly BASE = '/api';
   private readonly TOKEN_KEY = 'redgifs_token';
   private readonly EXPIRY_KEY = 'redgifs_token_expiry';
   private readonly TOKEN_TTL = 23 * 60 * 60 * 1000;
@@ -54,7 +52,7 @@ export class RedgifsApiService {
 
   private ensureAuth(): Observable<boolean> {
     if (this.token && Date.now() < this.tokenExpiry) return of(true);
-    return this.http.get<TempToken>(`${this.BASE}/v2/auth/temporary`, {
+    return this.http.get<TempToken>(`${this.config.baseUrl}/v2/auth/temporary`, {
       headers: new HttpHeaders({ 'Accept': 'application/json' })
     }).pipe(
       tap(t => {
@@ -64,7 +62,10 @@ export class RedgifsApiService {
         localStorage.setItem(this.EXPIRY_KEY, String(this.tokenExpiry));
       }),
       map(() => true),
-      catchError(() => throwError(() => new Error('Auth failed')))
+      catchError(err => {
+        console.error('Auth error details:', err.status, err.statusText, err.url ?? err.message);
+        return throwError(() => new Error('Auth failed'));
+      })
     );
   }
 
@@ -80,7 +81,7 @@ export class RedgifsApiService {
   private get<T>(path: string): Observable<T> {
     return this.ensureAuth().pipe(
       switchMap(() => this.waitForSlot().pipe(
-        switchMap(() => this.http.get<T>(`${this.BASE}${path}`, { headers: this.headers(), observe: 'response' }).pipe(
+        switchMap(() => this.http.get<T>(`${this.config.baseUrl}${path}`, { headers: this.headers(), observe: 'response' }).pipe(
           map(r => r.body as T),
           catchError(err => {
             if (err.status === 429 && this.settings.get().rateLimitEnabled) {
@@ -129,11 +130,11 @@ export class RedgifsApiService {
   }
 
   shareUrl(gif: Gif): string {
-    return `${this.redgifsDomain}/watch/${gif.id}`;
+    return `${this.config.redgifsDomain}/watch/${gif.id}`;
   }
 
   embedUrl(gif: Gif): string {
-    return `${this.embedDomain}/i/${gif.id}.jpg`;
+    return `${this.config.embedDomain}/i/${gif.id}.jpg`;
   }
 
   getTrendingGifs(): Observable<Gif[]> {
@@ -189,7 +190,7 @@ export class RedgifsApiService {
   private post<T>(path: string, body: unknown): Observable<T> {
     return this.ensureAuth().pipe(
       switchMap(() => this.waitForSlot().pipe(
-        switchMap(() => this.http.post<T>(`${this.BASE}${path}`, body, { headers: this.headers(), observe: 'response' }).pipe(
+        switchMap(() => this.http.post<T>(`${this.config.baseUrl}${path}`, body, { headers: this.headers(), observe: 'response' }).pipe(
           map(r => r.body as T),
           catchError(err => {
             if (err.status === 429 && this.settings.get().rateLimitEnabled) {
@@ -313,11 +314,11 @@ export class RedgifsApiService {
   }
 
   proxyUrl(url: string): string {
-    return url?.replace('https://media.redgifs.com', '/cdn');
+    return url?.replace('https://media.redgifs.com', this.config.cdnDomain);
   }
 
   proxyUserpicUrl(url: string | undefined | null): string {
-    return url?.replace('https://userpic.redgifs.com', '/userpic') || 'assets/default-avatar.svg';
+    return url?.replace('https://userpic.redgifs.com', this.config.userpicDomain) || 'assets/default-avatar.svg';
   }
 
   async cachedMediaUrl(url: string): Promise<string> {
@@ -341,7 +342,7 @@ export class RedgifsApiService {
   }
 
   hlsUrl(gifId: string, quality: 'hd' | 'sd' = 'hd'): string {
-    return `/api/v2/gifs/${gifId}/${quality}.m3u8`;
+    return `${this.config.baseUrl}/v2/gifs/${gifId}/${quality}.m3u8`;
   }
 
   getToken(): string | null {

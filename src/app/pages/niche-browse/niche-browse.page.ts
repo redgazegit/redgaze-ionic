@@ -7,7 +7,7 @@ import { SettingsService } from '../../services/settings.service';
 import { WatchQueueService } from '../../services/watch-queue.service';
 import { nicheFeedGenerator } from '../../services/feed-generators';
 import { Gif, Niche } from '../../models/gif.model';
-import { IonicModule } from '@ionic/angular';
+import { IonBackButton, IonButtons, IonContent, IonHeader, IonInfiniteScroll, IonInfiniteScrollContent, IonSpinner, IonTitle, IonToolbar } from '@ionic/angular/standalone';
 
 import { GifCardComponent } from '../../components/gif-card/gif-card.component';
 
@@ -16,7 +16,7 @@ import { GifCardComponent } from '../../components/gif-card/gif-card.component';
     templateUrl: './niche-browse.page.html',
     styleUrls: ['./niche-browse.page.scss'],
     imports: [
-    IonicModule,
+    IonBackButton, IonButtons, IonContent, IonHeader, IonInfiniteScroll, IonInfiniteScrollContent, IonSpinner, IonTitle, IonToolbar,
     GifCardComponent
 ],
     changeDetection: ChangeDetectionStrategy.OnPush,

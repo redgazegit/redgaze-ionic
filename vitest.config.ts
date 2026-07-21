@@ -12,6 +12,11 @@ export default defineConfig({
     exclude: ['src/**/*.e2e.spec.ts', 'e2e/**'],
     css: false,
     reporters: ['default'],
+    onUnhandledError(error): boolean | void {
+      if (error instanceof Error && error.name === 'AbortError' && error.message.includes('The operation was aborted')) {
+        return false;
+      }
+    },
     coverage: {
       provider: 'v8',
       include: ['src/app/**/*.ts'],

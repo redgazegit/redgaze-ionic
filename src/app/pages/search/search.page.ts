@@ -8,7 +8,7 @@ import { WatchQueueService } from '../../services/watch-queue.service';
 import { searchFeedGenerator } from '../../services/feed-generators';
 import { Gif, TagSuggestion, User } from '../../models/gif.model';
 
-import { IonicModule } from '@ionic/angular';
+import { IonAvatar, IonBadge, IonCard, IonCardContent, IonCardHeader, IonCardTitle, IonChip, IonContent, IonHeader, IonIcon, IonItem, IonLabel, IonList, IonSearchbar, IonSegment, IonSegmentButton, IonSpinner, IonToolbar } from '@ionic/angular/standalone';
 
 import { GifCardComponent } from '../../components/gif-card/gif-card.component';
 
@@ -17,7 +17,7 @@ import { GifCardComponent } from '../../components/gif-card/gif-card.component';
     templateUrl: './search.page.html',
     styleUrls: ['./search.page.scss'],
     imports: [
-    IonicModule,
+    IonAvatar, IonBadge, IonCard, IonCardContent, IonCardHeader, IonCardTitle, IonChip, IonContent, IonHeader, IonIcon, IonItem, IonLabel, IonList, IonSearchbar, IonSegment, IonSegmentButton, IonSpinner, IonToolbar,
     GifCardComponent,
     RouterLink
 ],

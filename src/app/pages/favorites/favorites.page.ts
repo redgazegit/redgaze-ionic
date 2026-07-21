@@ -1,7 +1,7 @@
 import { Component, OnInit, inject, ChangeDetectionStrategy } from '@angular/core';
 import { FavoritesService } from '../../services/favorites.service';
 import { Gif } from '../../models/gif.model';
-import { IonicModule } from '@ionic/angular';
+import { IonButton, IonButtons, IonContent, IonHeader, IonIcon, IonTitle, IonToolbar } from '@ionic/angular/standalone';
 
 import { RouterLink } from '@angular/router';
 import { GifCardComponent } from '../../components/gif-card/gif-card.component';
@@ -12,7 +12,7 @@ import { VideoPlayerComponent } from '../../components/video-player/video-player
     templateUrl: './favorites.page.html',
     styleUrls: ['./favorites.page.scss'],
     imports: [
-    IonicModule,
+    IonButton, IonButtons, IonContent, IonHeader, IonIcon, IonTitle, IonToolbar,
     RouterLink,
     GifCardComponent,
     VideoPlayerComponent

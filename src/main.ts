@@ -1,15 +1,15 @@
 
-
 import { bootstrapApplication } from '@angular/platform-browser';
 import { provideZonelessChangeDetection } from '@angular/core';
 import { provideRouter, RouteReuseStrategy } from '@angular/router';
 import { IonicRouteStrategy, provideIonicAngular } from '@ionic/angular/standalone';
-import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import { provideTanStackQuery, QueryClient } from '@tanstack/angular-query-experimental';
-import { persistQueryClient } from '@tanstack/query-persist-client-core';
-import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister';
+import { Capacitor } from '@capacitor/core';
 import { AppComponent } from './app/app.component';
 import { routes } from './app/app.routes';
+import { API_CONFIG, DEV_API_CONFIG, PROD_API_CONFIG } from './app/services/api-config';
+import { nativeHttpInterceptor } from './app/services/native-http.interceptor';
 import './app/icons';
 
 const queryClient = new QueryClient({
@@ -19,25 +19,19 @@ const queryClient = new QueryClient({
       gcTime: 1000 * 60 * 60 * 24,
       retry: 3,
       retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 10000),
-    refetchOnWindowFocus: false,
+      refetchOnWindowFocus: false,
     },
   },
-});
-const persister = createAsyncStoragePersister({ storage: window.localStorage });
-
-persistQueryClient({
-  queryClient,
-  persister,
-  maxAge: 1000 * 60 * 60 * 24,
 });
 
 bootstrapApplication(AppComponent, {
   providers: [
     provideZonelessChangeDetection(),
-    provideIonicAngular(),
+    provideIonicAngular({}),
     provideRouter(routes),
-    provideHttpClient(),
+    provideHttpClient(withInterceptors([nativeHttpInterceptor])),
     { provide: RouteReuseStrategy, useClass: IonicRouteStrategy },
     provideTanStackQuery(queryClient),
+    { provide: API_CONFIG, useFactory: () => Capacitor.isNativePlatform() ? PROD_API_CONFIG : DEV_API_CONFIG },
   ],
-}).catch(err => console.log(err));
+}).catch(err => console.error(err));

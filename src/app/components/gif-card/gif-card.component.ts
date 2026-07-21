@@ -1,28 +1,41 @@
-import { Component, inject, input, output, signal, ChangeDetectionStrategy } from '@angular/core';
+import { Component, inject, input, output, signal, ChangeDetectionStrategy, OnInit, OnDestroy } from '@angular/core';
 import { Gif } from '../../models/gif.model';
 import { FavoritesService } from '../../services/favorites.service';
+import { RedgifsApiService } from '../../services/redgifs-api.service';
+import { MediaProxyService } from '../../services/media-proxy.service';
 
-import { IonicModule } from '@ionic/angular';
+import { IonIcon } from '@ionic/angular/standalone';
 
 @Component({
     selector: 'app-gif-card',
     templateUrl: './gif-card.component.html',
     styleUrls: ['./gif-card.component.scss'],
-    imports: [IonicModule],
+    imports: [IonIcon],
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class GifCardComponent {
+export class GifCardComponent implements OnInit, OnDestroy {
   private favService = inject(FavoritesService);
+  private api = inject(RedgifsApiService);
+  private mediaProxy = inject(MediaProxyService);
 
   readonly gif = input.required<Gif>();
   readonly posterSrc = signal('');
 
   cardClick = output<string>();
   creatorClick = output<string>();
+  private blobUrl: string | null = null;
 
-  ngOnInit(): void {
+  async ngOnInit(): Promise<void> {
     const thumb = this.gif().urls.thumbnail;
-    this.posterSrc.set(thumb?.replace('https://media.redgifs.com', '/cdn') || '');
+    if (!thumb) return;
+    const proxied = this.api.proxyUrl(thumb);
+    const blob = await this.mediaProxy.proxyImage(proxied);
+    if (blob !== proxied) this.blobUrl = blob;
+    this.posterSrc.set(blob);
+  }
+
+  ngOnDestroy(): void {
+    if (this.blobUrl) URL.revokeObjectURL(this.blobUrl);
   }
 
   get isFav(): boolean {

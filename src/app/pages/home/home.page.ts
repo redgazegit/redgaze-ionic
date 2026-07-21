@@ -1,12 +1,13 @@
 import { Component, signal, inject, effect, ChangeDetectionStrategy } from '@angular/core';
 import { injectQuery, injectInfiniteQuery } from '@tanstack/angular-query-experimental';
 import { firstValueFrom } from 'rxjs';
+import { map } from 'rxjs/operators';
 import { RedgifsApiService } from '../../services/redgifs-api.service';
 import { SettingsService } from '../../services/settings.service';
 import { WatchQueueService } from '../../services/watch-queue.service';
 import { homeFeedGenerator } from '../../services/feed-generators';
 import { Gif, Creator, TagSuggestion, Niche, SearchResult } from '../../models/gif.model';
-import { IonicModule } from '@ionic/angular';
+import { IonAvatar, IonBadge, IonButton, IonButtons, IonCard, IonCardContent, IonCardHeader, IonCardTitle, IonChip, IonContent, IonHeader, IonIcon, IonInfiniteScroll, IonInfiniteScrollContent, IonItem, IonLabel, IonRefresher, IonRefresherContent, IonSegment, IonSegmentButton, IonSpinner, IonTitle, IonToolbar } from '@ionic/angular/standalone';
 
 import { GifCardComponent } from '../../components/gif-card/gif-card.component';
 import { VideoPlayerComponent } from '../../components/video-player/video-player.component';
@@ -17,7 +18,7 @@ import { Router, RouterLink } from '@angular/router';
     templateUrl: './home.page.html',
     styleUrls: ['./home.page.scss'],
     imports: [
-    IonicModule,
+    IonAvatar, IonBadge, IonButton, IonButtons, IonCard, IonCardContent, IonCardHeader, IonCardTitle, IonChip, IonContent, IonHeader, IonIcon, IonInfiniteScroll, IonInfiniteScrollContent, IonItem, IonLabel, IonRefresher, IonRefresherContent, IonSegment, IonSegmentButton, IonSpinner, IonTitle, IonToolbar,
     GifCardComponent,
     VideoPlayerComponent,
     RouterLink
@@ -45,7 +46,7 @@ export class HomePage {
 
   readonly trendingGifsQuery = injectQuery(() => ({
     queryKey: ['home-trending-gifs'],
-    queryFn: () => firstValueFrom(this.api.getTrendingGifs()),
+    queryFn: () => firstValueFrom(this.api.getPopularFeed('trending', 40, 1).pipe(map(r => r.gifs))),
     staleTime: 1000 * 60 * 2,
   }));
 

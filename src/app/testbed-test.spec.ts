@@ -2,6 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Component } from '@angular/core';
 
 @Component({
+  selector: 'app-testbed-test',
   template: `<div>test</div>`,
   standalone: true
 })

@@ -4,7 +4,7 @@ import { RedgifsApiService } from '../../services/redgifs-api.service';
 import { FavoritesService } from '../../services/favorites.service';
 import { WatchQueueService } from '../../services/watch-queue.service';
 import { Gif } from '../../models/gif.model';
-import { IonicModule } from '@ionic/angular';
+import { IonBackButton, IonButton, IonButtons, IonChip, IonContent, IonHeader, IonIcon, IonLabel, IonSpinner, IonTitle, IonToolbar } from '@ionic/angular/standalone';
 import { DatePipe } from '@angular/common';
 import { VideoPlayerComponent } from '../../components/video-player/video-player.component';
 
@@ -12,7 +12,7 @@ import { VideoPlayerComponent } from '../../components/video-player/video-player
     selector: 'app-stories',
     templateUrl: './stories.page.html',
     styleUrls: ['./stories.page.scss'],
-    imports: [IonicModule, DatePipe, RouterLink, VideoPlayerComponent],
+    imports: [IonBackButton, IonButton, IonButtons, IonChip, IonContent, IonHeader, IonIcon, IonLabel, IonSpinner, IonTitle, IonToolbar, DatePipe, RouterLink, VideoPlayerComponent],
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class StoriesPage implements OnInit, OnDestroy {
