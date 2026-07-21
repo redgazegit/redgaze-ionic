@@ -32,7 +32,6 @@ export class WatchPage implements OnInit, OnDestroy {
   api = inject(RedgifsApiService);
   private mediaProxy = inject(MediaProxyService);
   favService = inject(FavoritesService);
-  private mediaProxy = inject(MediaProxyService);
   private settings = inject(SettingsService);
   private videoState = inject(VideoStateService);
 
@@ -119,7 +118,7 @@ export class WatchPage implements OnInit, OnDestroy {
     const rawUrl = this.quality === 'hd' ? this.gif.urls.hd : this.gif.urls.sd;
     const url = rawUrl || '';
     if (Capacitor.isNativePlatform()) {
-      video.src = await this.mediaProxy.proxyVideo(url);
+      video.src = await this.mediaProxy.proxyVideoProgressive(url);
     } else {
       video.src = this.api.proxyUrl(url);
       this.api.cachedMediaUrl(url).then(cachedUrl => {
@@ -189,7 +188,7 @@ export class WatchPage implements OnInit, OnDestroy {
     const rawUrl = this.quality === 'hd' ? this.gif.urls.hd : this.gif.urls.sd;
     const url = rawUrl || '';
     if (Capacitor.isNativePlatform()) {
-      video.src = await this.mediaProxy.proxyVideo(url);
+      video.src = await this.mediaProxy.proxyVideoProgressive(url);
     } else {
       video.src = this.api.proxyUrl(url);
       this.api.cachedMediaUrl(url).then(cachedUrl => {
@@ -236,7 +235,7 @@ export class WatchPage implements OnInit, OnDestroy {
     this.videoState.onPause(this.gif?.id || '');
     this.hls?.destroy();
     this.player?.destroy();
-    this.blobUrls.forEach(url => URL.revokeObjectURL(url));
+    this.blobUrls.forEach(url => this.mediaProxy.abortProgressiveStream(url));
   }
 
   download(): void {

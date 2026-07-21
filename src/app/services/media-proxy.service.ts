@@ -5,6 +5,7 @@ import { CapacitorHttp, HttpResponse } from '@capacitor/core';
 @Injectable({ providedIn: 'root' })
 export class MediaProxyService {
   private cache = new Map<string, string>();
+  private progressiveStreams = new Map<string, { abortController: AbortController }>();
 
   async proxyImage(url: string): Promise<string> {
     console.log('[MediaProxy] proxyImage called:', url?.substring(0, 80));
@@ -62,6 +63,106 @@ export class MediaProxyService {
     }
   }
 
+  async proxyVideoProgressive(url: string): Promise<string> {
+    if (!Capacitor.isNativePlatform()) return url;
+
+    const cached = this.cache.get(url);
+    if (cached) return cached;
+
+    const chunkSize = 1024 * 1024;
+    const abortController = new AbortController();
+
+    try {
+      const first = await this.rangeRequest(url, 0, chunkSize - 1, abortController.signal);
+      const totalSize = first.totalSize;
+      if (!totalSize) throw new Error('Range requests not supported');
+
+      const mediaSource = new MediaSource();
+      const blobUrl = URL.createObjectURL(mediaSource);
+      this.cache.set(url, blobUrl);
+      this.progressiveStreams.set(blobUrl, { abortController });
+
+      const streamNext = async (sb: SourceBuffer): Promise<void> => {
+        let remainingStart = 0;
+        let firstAppended = false;
+
+        while (remainingStart < totalSize) {
+          if (abortController.signal.aborted) break;
+
+          const end = Math.min(remainingStart + chunkSize, totalSize) - 1;
+          const chunk = remainingStart === 0
+            ? first
+            : await this.rangeRequest(url, remainingStart, end, abortController.signal);
+
+          if (abortController.signal.aborted) break;
+
+          await new Promise<void>((resolve, reject) => {
+            const onUpdate = () => {
+              sb.removeEventListener('updateend', onUpdate);
+              sb.removeEventListener('error', onError);
+              resolve();
+            };
+            const onError = () => {
+              sb.removeEventListener('updateend', onUpdate);
+              sb.removeEventListener('error', onError);
+              reject(new Error('SourceBuffer error'));
+            };
+            sb.addEventListener('updateend', onUpdate);
+            sb.addEventListener('error', onError);
+            try {
+              sb.appendBuffer(chunk.data);
+            } catch (e) {
+              sb.removeEventListener('updateend', onUpdate);
+              sb.removeEventListener('error', onError);
+              reject(e);
+            }
+          });
+
+          if (!firstAppended) {
+            firstAppended = true;
+          }
+
+          remainingStart += chunkSize;
+        }
+
+        if (!abortController.signal.aborted && mediaSource.readyState === 'open') {
+          mediaSource.endOfStream();
+        }
+      };
+
+      mediaSource.addEventListener('sourceopen', async () => {
+        if (abortController.signal.aborted) return;
+
+        try {
+          const sb = this.createSourceBuffer(mediaSource);
+          if (!sb) {
+            console.error('[MediaProxy] no compatible SourceBuffer, falling back');
+            mediaSource.endOfStream();
+            return;
+          }
+          await streamNext(sb);
+        } catch (err) {
+          console.error('[MediaProxy] streaming error:', err);
+        }
+      }, { once: true });
+
+      return blobUrl;
+    } catch (err) {
+      abortController.abort();
+      console.error('[MediaProxy] progressive failed, falling back:', url, err);
+      return this.proxyVideo(url);
+    }
+  }
+
+  abortProgressiveStream(blobUrl: string): void {
+    const stream = this.progressiveStreams.get(blobUrl);
+    if (stream) {
+      stream.abortController.abort();
+      this.progressiveStreams.delete(blobUrl);
+    }
+    URL.revokeObjectURL(blobUrl);
+  }
+
   async proxyM3u8(url: string, authToken: string): Promise<string> {
     let m3u8: string;
 
@@ -117,7 +218,14 @@ export class MediaProxyService {
 
     if (res.status < 200 || res.status >= 300) throw new Error(`HTTP ${res.status}`);
 
-    const base64 = res.data as string;
+    return this.base64ToArrayBuffer(res.data as string);
+  }
+
+  private base64ToBlob(base64: string, contentType: string): Blob {
+    return new Blob([this.base64ToArrayBuffer(base64)], { type: contentType });
+  }
+
+  private base64ToArrayBuffer(base64: string): ArrayBuffer {
     const byteChars = atob(base64);
     const bytes = new Uint8Array(byteChars.length);
     for (let i = 0; i < byteChars.length; i++) {
@@ -126,13 +234,57 @@ export class MediaProxyService {
     return bytes.buffer as ArrayBuffer;
   }
 
-  private base64ToBlob(base64: string, contentType: string): Blob {
-    const byteChars = atob(base64);
-    const len = byteChars.length;
-    const bytes = new Uint8Array(len);
-    for (let i = 0; i < len; i++) {
-      bytes[i] = byteChars.charCodeAt(i);
+  private async rangeRequest(url: string, start: number, end: number, signal: AbortSignal): Promise<{ data: ArrayBuffer; totalSize: number | null }> {
+    if (!Capacitor.isNativePlatform()) {
+      try {
+        const response = await fetch(url, {
+          headers: { Range: `bytes=${start}-${end}` },
+          signal,
+        });
+        if (response.status !== 206) throw new Error(`HTTP ${response.status}`);
+        const data = await response.arrayBuffer();
+        const totalSize = this.parseTotalSize(response.headers.get('content-range'));
+        return { data, totalSize };
+      } catch (err) {
+        if ((err as Error)?.name === 'AbortError') throw err;
+        throw err;
+      }
     }
-    return new Blob([bytes], { type: contentType });
+
+    const res: HttpResponse = await CapacitorHttp.request({
+      url,
+      method: 'GET',
+      headers: { Range: `bytes=${start}-${end}` },
+      responseType: 'arraybuffer',
+    });
+
+    if (res.status !== 206) throw new Error(`HTTP ${res.status}`);
+
+    const data = this.base64ToArrayBuffer(res.data as string);
+    const totalSize = this.parseTotalSize(
+      (res.headers as Record<string, string>)?.['content-range'] ?? null
+    );
+    return { data, totalSize };
+  }
+
+  private parseTotalSize(contentRange: string | null): number | null {
+    if (!contentRange) return null;
+    const match = contentRange.match(/bytes \d+-\d+\/(\d+)/);
+    return match ? parseInt(match[1], 10) : null;
+  }
+
+  private createSourceBuffer(mediaSource: MediaSource): SourceBuffer | null {
+    const mimeTypes = [
+      'video/mp4; codecs="avc1.42E01E,mp4a.40.2"',
+      'video/mp4',
+    ];
+    for (const mimeType of mimeTypes) {
+      try {
+        return mediaSource.addSourceBuffer(mimeType);
+      } catch {
+        continue;
+      }
+    }
+    return null;
   }
 }

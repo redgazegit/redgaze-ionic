@@ -51,7 +51,7 @@ export class VideoPlayerComponent implements OnDestroy {
 
       if (Capacitor.isNativePlatform()) {
         this.mediaProxy.proxyImage(thumb).then(url => this.posterSrc.set(url));
-        this.mediaProxy.proxyVideo(rawUrl).then(url => {
+        this.mediaProxy.proxyVideoProgressive(rawUrl).then(url => {
           this.videoSrc.set(url);
           this.blobUrls.push(url);
         });
@@ -124,7 +124,7 @@ export class VideoPlayerComponent implements OnDestroy {
     this.observer?.disconnect();
     this.player?.destroy();
     this.videoState.onPause(this.gif()?.id || '');
-    this.blobUrls.forEach(url => URL.revokeObjectURL(url));
+    this.blobUrls.forEach(url => this.mediaProxy.abortProgressiveStream(url));
   }
 
   get isFav(): boolean {
