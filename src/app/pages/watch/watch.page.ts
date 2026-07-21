@@ -5,6 +5,7 @@ import { firstValueFrom } from 'rxjs';
 import Plyr from 'plyr';
 import Hls from 'hls.js';
 import { Capacitor } from '@capacitor/core';
+import { SystemBars } from '@capacitor/core';
 import { CacheFragmentLoader } from '../../services/hls-cache-loader';
 import { RedgifsApiService } from '../../services/redgifs-api.service';
 import { MediaProxyService } from '../../services/media-proxy.service';
@@ -34,6 +35,7 @@ export class WatchPage implements OnInit, OnDestroy {
   favService = inject(FavoritesService);
   private settings = inject(SettingsService);
   private videoState = inject(VideoStateService);
+
 
   private readonly videoRef = viewChild<ElementRef<HTMLVideoElement>>('videoPlayer');
 
@@ -178,6 +180,7 @@ export class WatchPage implements OnInit, OnDestroy {
         hideControls: true,
         clickToPlay: true,
       });
+      this.wireFsEvents();
       this.player.on('ready', () => {
         this.setupTracking();
       });
@@ -206,6 +209,7 @@ export class WatchPage implements OnInit, OnDestroy {
       hideControls: true,
       clickToPlay: true,
     });
+    this.wireFsEvents();
     if (!video.hasAttribute('poster')) video.poster = this.posterSrc();
 
     this.setupTracking();
@@ -218,6 +222,18 @@ export class WatchPage implements OnInit, OnDestroy {
     this.player?.on('play', () => { this.playStart = Date.now(); });
     this.player?.on('pause', () => this.sendDuration());
     this.player?.on('ended', () => this.sendDuration());
+  }
+
+  private wireFsEvents(): void {
+    if (!Capacitor.isNativePlatform() || !this.player) return;
+    this.player.on('enterfullscreen', () => {
+      console.log('[Watch] Plyr enterfullscreen');
+      SystemBars.hide().catch(() => {});
+    });
+    this.player.on('exitfullscreen', () => {
+      console.log('[Watch] Plyr exitfullscreen');
+      SystemBars.show().catch(() => {});
+    });
   }
 
   private sendDuration(): void {

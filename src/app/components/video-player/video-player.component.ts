@@ -1,7 +1,7 @@
 import { Component, viewChild, ElementRef, OnDestroy, inject, signal, input, effect, ChangeDetectionStrategy } from '@angular/core';
 import { Router } from '@angular/router';
 import Plyr from 'plyr';
-import { Capacitor } from '@capacitor/core';
+import { Capacitor, SystemBars } from '@capacitor/core';
 import { Gif } from '../../models/gif.model';
 import { FavoritesService } from '../../services/favorites.service';
 import { RedgifsApiService } from '../../services/redgifs-api.service';
@@ -24,6 +24,7 @@ export class VideoPlayerComponent implements OnDestroy {
   private mediaProxy = inject(MediaProxyService);
   private router = inject(Router);
   private settings = inject(SettingsService);
+
 
   readonly gif = input.required<Gif>();
   readonly storiesMode = input(false);
@@ -79,6 +80,17 @@ export class VideoPlayerComponent implements OnDestroy {
         hideControls: false,
         clickToPlay: true,
       });
+
+      if (Capacitor.isNativePlatform()) {
+        this.player.on('enterfullscreen', () => {
+          console.log('[VP] Plyr enterfullscreen');
+          SystemBars.hide().catch(() => {});
+        });
+        this.player.on('exitfullscreen', () => {
+          console.log('[VP] Plyr exitfullscreen');
+          SystemBars.show().catch(() => {});
+        });
+      }
 
       this.observer = new IntersectionObserver(entries => {
         entries.forEach(entry => {
