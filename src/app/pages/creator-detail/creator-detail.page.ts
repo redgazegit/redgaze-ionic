@@ -7,19 +7,21 @@ import { SettingsService } from '../../services/settings.service';
 import { WatchQueueService } from '../../services/watch-queue.service';
 import { creatorFeedGenerator } from '../../services/feed-generators';
 import { Gif, User } from '../../models/gif.model';
-import { IonAvatar, IonBackButton, IonBadge, IonButton, IonButtons, IonChip, IonContent, IonHeader, IonIcon, IonInfiniteScroll, IonInfiniteScrollContent, IonItem, IonLabel, IonNote, IonSpinner, IonTitle, IonToolbar } from '@ionic/angular/standalone';
+import { IonAvatar, IonBackButton, IonBadge, IonButton, IonButtons, IonChip, IonContent, IonHeader, IonIcon, IonInfiniteScroll, IonInfiniteScrollContent, IonItem, IonLabel, IonNote, IonTitle, IonToolbar } from '@ionic/angular/standalone';
 import { DecimalPipe, DatePipe } from '@angular/common';
 import { GifCardComponent } from '../../components/gif-card/gif-card.component';
 import { VideoPlayerComponent } from '../../components/video-player/video-player.component';
+import { SkeletonCardComponent } from '../../components/skeleton-card/skeleton-card.component';
 
 @Component({
     selector: 'app-creator-detail',
     templateUrl: './creator-detail.page.html',
     styleUrls: ['./creator-detail.page.scss'],
     imports: [
-    IonAvatar, IonBackButton, IonBadge, IonButton, IonButtons, IonChip, IonContent, IonHeader, IonIcon, IonInfiniteScroll, IonInfiniteScrollContent, IonItem, IonLabel, IonNote, IonSpinner, IonTitle, IonToolbar,
+    IonAvatar, IonBackButton, IonBadge, IonButton, IonButtons, IonChip, IonContent, IonHeader, IonIcon, IonInfiniteScroll, IonInfiniteScrollContent, IonItem, IonLabel, IonNote, IonTitle, IonToolbar,
     GifCardComponent,
     VideoPlayerComponent,
+    SkeletonCardComponent,
     DecimalPipe,
     DatePipe
 ],
@@ -64,7 +66,7 @@ export class CreatorDetailPage implements OnInit {
 
   get user(): User | undefined { return this.userQuery.data(); }
   get gifs(): Gif[] { return this.gifsQuery.data()?.pages.reduce((acc: Gif[], p) => [...acc, ...p.gifs], [] as Gif[]) ?? []; }
-  get loading(): boolean { return this.gifsQuery.isLoading(); }
+  get loading(): boolean { return this.gifsQuery.isFetching() && this.gifsQuery.data()?.pages.length === 0; }
   get hasMore(): boolean { return this.gifsQuery.hasNextPage(); }
   get socialLinks(): { domain: string; url: string }[] {
     const links = this.user?.links || [];

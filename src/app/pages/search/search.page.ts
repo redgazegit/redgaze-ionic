@@ -1,7 +1,8 @@
-import { Component, OnInit, signal, effect, inject, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, OnDestroy, signal, effect, inject, ChangeDetectionStrategy } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { injectQuery } from '@tanstack/angular-query-experimental';
-import { firstValueFrom } from 'rxjs';
+import { Subject, Subscription, firstValueFrom, of } from 'rxjs';
+import { debounceTime, distinctUntilChanged, switchMap } from 'rxjs/operators';
 import { RedgifsApiService } from '../../services/redgifs-api.service';
 import { SettingsService } from '../../services/settings.service';
 import { WatchQueueService } from '../../services/watch-queue.service';
@@ -25,7 +26,7 @@ import { SkeletonCardComponent } from '../../components/skeleton-card/skeleton-c
 ],
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class SearchPage implements OnInit {
+export class SearchPage implements OnInit, OnDestroy {
   api = inject(RedgifsApiService);
   private router = inject(Router);
   private route = inject(ActivatedRoute);
@@ -42,6 +43,9 @@ export class SearchPage implements OnInit {
   loading = false;
   private readonly searchQuery = signal('');
   private readonly searchTypeSig = signal<'gifs' | 'images'>('gifs');
+  private suggestSubject = new Subject<string>();
+  private suggestSub?: Subscription;
+  private entered = false;
 
   readonly searchResultQuery = injectQuery(() => ({
     queryKey: ['search', this.searchTypeSig(), this.searchQuery()],
@@ -58,6 +62,12 @@ export class SearchPage implements OnInit {
   }));
 
   constructor() {
+    this.suggestSub = this.suggestSubject.pipe(
+      debounceTime(250),
+      distinctUntilChanged(),
+      switchMap(q => q ? this.api.getTagSuggestions(q) : of([]))
+    ).subscribe(s => this.suggestions = s);
+
     effect(() => {
       const r = this.searchResultQuery.data();
       if (r) {
@@ -67,6 +77,10 @@ export class SearchPage implements OnInit {
         this.loading = false;
       }
     });
+  }
+
+  ngOnDestroy(): void {
+    this.suggestSub?.unsubscribe();
   }
 
   ngOnInit(): void {
@@ -83,7 +97,7 @@ export class SearchPage implements OnInit {
     const q = (event.detail?.value ?? '').trim();
     this.query.set(q);
     if (q) {
-      this.api.getTagSuggestions(q).subscribe(s => this.suggestions = s);
+      this.suggestSubject.next(q);
     } else {
       this.suggestions = [];
     }
@@ -100,6 +114,7 @@ export class SearchPage implements OnInit {
       this.loading = true;
     }
     this.suggestions = [];
+    this.suggestSubject.next('');
     this.searchTypeSig.set(this.searchType());
     this.searchQuery.set(q);
     this.router.navigate(['/search', q], { replaceUrl: true });

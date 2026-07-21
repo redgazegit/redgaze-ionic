@@ -1,11 +1,17 @@
 <div class="gif-card" [attr.data-testid]="'gif-card-' + gif().id"
   (click)="onCardClick($event)">
   <div class="card-media">
+    @if (loading()) {
+      <div class="skeleton"></div>
+    }
     <img
       [src]="posterSrc()"
       [alt]="gif().id"
       class="gif-thumb"
+      [class.hidden]="loading()"
       loading="lazy"
+      (load)="loading.set(false)"
+      (error)="loading.set(false)"
     />
     <div class="card-overlay-top">
       @if (gif().verified) {

@@ -30,7 +30,23 @@
       width: 100%;
       height: 100%;
       object-fit: cover;
-      transition: transform var(--rg-transition-slow);
+      transition: transform var(--rg-transition-slow), opacity var(--rg-transition-fast);
+    }
+
+    .gif-thumb.hidden {
+      opacity: 0;
+    }
+
+    .skeleton {
+      position: absolute;
+      inset: 0;
+      background: var(--rg-surface-overlay);
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
     }
 
     &:hover .gif-thumb {

@@ -8,7 +8,7 @@ import { provideTanStackQuery, QueryClient } from '@tanstack/angular-query-exper
 import { Capacitor } from '@capacitor/core';
 import { AppComponent } from './app/app.component';
 import { routes } from './app/app.routes';
-import { API_CONFIG, DEV_API_CONFIG, PROD_API_CONFIG } from './app/services/api-config';
+import { provideApiConfig } from './app/services/api-config';
 import { nativeHttpInterceptor } from './app/services/native-http.interceptor';
 import './app/icons';
 
@@ -32,6 +32,6 @@ bootstrapApplication(AppComponent, {
     provideHttpClient(withInterceptors([nativeHttpInterceptor])),
     { provide: RouteReuseStrategy, useClass: IonicRouteStrategy },
     provideTanStackQuery(queryClient),
-    { provide: API_CONFIG, useFactory: () => Capacitor.isNativePlatform() ? PROD_API_CONFIG : DEV_API_CONFIG },
+    provideApiConfig(Capacitor.isNativePlatform()),
   ],
 }).catch(err => console.error(err));

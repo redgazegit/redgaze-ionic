@@ -20,6 +20,7 @@ export class GifCardComponent implements OnInit, OnDestroy {
 
   readonly gif = input.required<Gif>();
   readonly posterSrc = signal('');
+  readonly loading = signal(true);
 
   cardClick = output<string>();
   creatorClick = output<string>();

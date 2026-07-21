@@ -59,11 +59,18 @@
   margin: 0;
 }
 
+.skeleton-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: var(--rg-space-3);
+  padding: var(--rg-space-3);
+}
+
 .gif-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: var(--rg-space-1);
-  padding: var(--rg-space-1);
+  gap: var(--rg-space-3);
+  padding: var(--rg-space-3);
 }
 
 .gif-list {

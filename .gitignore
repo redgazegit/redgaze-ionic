@@ -72,3 +72,18 @@ Thumbs.db
 # Git worktrees
 .worktrees/
 .fallow/
+
+# Test artifacts
+/test-results/
+/playwright-report/
+/playwright/.cache/
+
+# Generated reports & temp files
+/repomix-output.xml
+ng-serve.pid
+ng-serve.log*
+
+# Agent skills (local tooling, not project code)
+.mcp.json
+.agents/
+.opencode/skills/

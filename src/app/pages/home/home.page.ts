@@ -6,8 +6,8 @@ import { RedgifsApiService } from '../../services/redgifs-api.service';
 import { SettingsService } from '../../services/settings.service';
 import { WatchQueueService } from '../../services/watch-queue.service';
 import { homeFeedGenerator } from '../../services/feed-generators';
-import { Gif, Creator, TagSuggestion, Niche, SearchResult } from '../../models/gif.model';
-import { IonAvatar, IonBadge, IonButton, IonButtons, IonCard, IonCardContent, IonCardHeader, IonCardTitle, IonChip, IonContent, IonHeader, IonIcon, IonInfiniteScroll, IonInfiniteScrollContent, IonItem, IonLabel, IonRefresher, IonRefresherContent, IonSegment, IonSegmentButton, IonSpinner, IonTitle, IonToolbar } from '@ionic/angular/standalone';
+import { Gif, Creator, Tag, Niche, SearchResult } from '../../models/gif.model';
+import { IonAvatar, IonBadge, IonButton, IonButtons, IonCard, IonCardContent, IonCardHeader, IonCardTitle, IonChip, IonContent, IonHeader, IonIcon, IonInfiniteScroll, IonInfiniteScrollContent, IonItem, IonLabel, IonRefresher, IonRefresherContent, IonSegment, IonSegmentButton, IonTitle, IonToolbar } from '@ionic/angular/standalone';
 
 import { GifCardComponent } from '../../components/gif-card/gif-card.component';
 import { VideoPlayerComponent } from '../../components/video-player/video-player.component';
@@ -130,7 +130,7 @@ export class HomePage {
   }
 
   get trendingGifs(): Gif[] { return this.trendingGifsQuery.data()?.slice(0, 20) ?? []; }
-  get trendingTags(): TagSuggestion[] { return this.trendingTagsQuery.data()?.slice(0, 10) ?? []; }
+  get trendingTags(): Tag[] { return this.trendingTagsQuery.data()?.slice(0, 10) ?? []; }
   get trendingCreators(): Creator[] { return this.trendingCreatorsQuery.data()?.slice(0, 10) ?? []; }
   get trendingNiches(): Niche[] { return this.trendingNichesQuery.data()?.slice(0, 10) ?? []; }
 

@@ -222,12 +222,12 @@ export class RedgifsApiService {
     return this.post('/v2/metrics/gifs', event);
   }
 
-  getTrendingTags(forceRefresh = false): Observable<TagSuggestion[]> {
+  getTrendingTags(forceRefresh = false): Observable<Tag[]> {
     const cached = localStorage.getItem('redgifs_trending_tags');
     if (!forceRefresh && cached) {
       try { return of(JSON.parse(cached)); } catch { /* fall through */ }
     }
-    return this.get<{ tags: TagSuggestion[] }>('/v2/search/trending').pipe(
+    return this.get<{ tags: Tag[] }>('/v2/search/trending').pipe(
       map(r => r.tags),
       tap(tags => localStorage.setItem('redgifs_trending_tags', JSON.stringify(tags)))
     );

@@ -55,23 +55,29 @@
     </div>
 
     <div class="sidebar">
-      @if (trendingTags.length) {
-        <ion-card data-testid="sidebar-tags">
-          <ion-card-header><ion-card-title>Trending Tags</ion-card-title></ion-card-header>
-          <ion-card-content>
+      <ion-card data-testid="sidebar-tags">
+        <ion-card-header><ion-card-title>Trending Tags</ion-card-title></ion-card-header>
+        <ion-card-content>
+          @if (trendingTags.length) {
             @for (tag of trendingTags; track tag) {
-              <ion-chip [routerLink]="['/search', tag.text]" color="primary" [attr.data-testid]="'trending-tag-' + tag.text">
-                {{ tag.text }}
+              <ion-chip [routerLink]="['/search', tag.name]" color="primary" [attr.data-testid]="'trending-tag-' + tag.name">
+                {{ tag.name }}
               </ion-chip>
             }
-          </ion-card-content>
-        </ion-card>
-      }
+          } @else {
+            <div class="skeleton-chips">
+              @for (_ of [1,2,3,4,5,6,7,8]; track $index) {
+                <div class="skeleton-chip"></div>
+              }
+            </div>
+          }
+        </ion-card-content>
+      </ion-card>
 
-      @if (trendingCreators.length) {
-        <ion-card data-testid="sidebar-creators">
-          <ion-card-header><ion-card-title>Popular Creators</ion-card-title></ion-card-header>
-          <ion-card-content>
+      <ion-card data-testid="sidebar-creators">
+        <ion-card-header><ion-card-title>Popular Creators</ion-card-title></ion-card-header>
+        <ion-card-content>
+          @if (trendingCreators.length) {
             @for (c of trendingCreators; track c) {
               <ion-item [routerLink]="['/creator', c.username]" detail lines="full" [attr.data-testid]="'trending-creator-' + c.username">
                 <ion-avatar slot="start">
@@ -85,22 +91,40 @@
                 </ion-label>
               </ion-item>
             }
-          </ion-card-content>
-        </ion-card>
-      }
+          } @else {
+            <div class="skeleton-creators">
+              @for (_ of [1,2,3,4]; track $index) {
+                <div class="skeleton-creator-item">
+                  <div class="skeleton-avatar"></div>
+                  <div class="skeleton-lines">
+                    <div class="skeleton-line w-60"></div>
+                    <div class="skeleton-line w-40"></div>
+                  </div>
+                </div>
+              }
+            </div>
+          }
+        </ion-card-content>
+      </ion-card>
 
-      @if (trendingNiches.length) {
-        <ion-card data-testid="sidebar-niches">
-          <ion-card-header><ion-card-title>Niches</ion-card-title></ion-card-header>
-          <ion-card-content>
+      <ion-card data-testid="sidebar-niches">
+        <ion-card-header><ion-card-title>Niches</ion-card-title></ion-card-header>
+        <ion-card-content>
+          @if (trendingNiches.length) {
             @for (n of trendingNiches; track n) {
               <ion-chip [routerLink]="['/niche', n.id]" color="secondary" [attr.data-testid]="'trending-niche-' + n.id">
                 {{ n.name }}
               </ion-chip>
             }
-          </ion-card-content>
-        </ion-card>
-      }
+          } @else {
+            <div class="skeleton-chips">
+              @for (_ of [1,2,3,4,5,6]; track $index) {
+                <div class="skeleton-chip"></div>
+              }
+            </div>
+          }
+        </ion-card-content>
+      </ion-card>
     </div>
   </div>
 </ion-content>
