@@ -18,6 +18,14 @@ async function handleNative(req: HttpRequest<unknown>): Promise<HttpEvent<unknow
   const headers: Record<string, string> = {};
   req.headers.keys().forEach(k => { headers[k] = req.headers.get(k) ?? ''; });
 
+  let data = req.body ?? undefined;
+  if (data != null && typeof data === 'object' && !(data instanceof FormData) && !(data instanceof ArrayBuffer) && !(data instanceof Blob) && !(data instanceof URLSearchParams)) {
+    data = JSON.stringify(data);
+    if (headers['Content-Type'] === undefined) {
+      headers['Content-Type'] = 'application/json';
+    }
+  }
+
   console.log('[NativeHttp] sending via CapacitorHttp:', req.method, req.url);
 
   let res;
@@ -26,7 +34,7 @@ async function handleNative(req: HttpRequest<unknown>): Promise<HttpEvent<unknow
       url: req.url,
       method: req.method,
       headers,
-      data: req.body ?? undefined,
+      data,
     });
     console.log('[NativeHttp] response:', res.status, typeof res.data);
   } catch (err) {

@@ -1,5 +1,5 @@
 import { Injectable, inject } from '@angular/core';
-import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { HttpClient, HttpHeaders, HttpErrorResponse } from '@angular/common/http';
 import { Observable, from, of, throwError, timer } from 'rxjs';
 import { switchMap, map, tap, catchError } from 'rxjs/operators';
 import { SettingsService } from './settings.service';
@@ -82,14 +82,14 @@ export class RedgifsApiService {
     return this.ensureAuth().pipe(
       switchMap(() => this.waitForSlot().pipe(
         switchMap(() => this.http.get<T>(`${this.config.baseUrl}${path}`, { headers: this.headers(), observe: 'response' }).pipe(
-          map(r => r.body as T),
+          map(r => { const b = r.body as any; if (b?.error) throw new HttpErrorResponse({ error: b.error, status: r.status, statusText: r.statusText, url: r.url ?? undefined }); return b as T; }),
           catchError(err => {
             if (err.status === 429 && this.settings.get().rateLimitEnabled) {
               const s = parseInt(err.headers?.get('Retry-After') || '5', 10);
               this.backoffUntil = Date.now() + s * 1000 + 1000;
               return this.get<T>(path);
             }
-            if (err.status === 401) {
+            if (err.status === 401 || err.status === 403) {
               this.token = null;
               this.tokenExpiry = 0;
               localStorage.removeItem(this.TOKEN_KEY);
@@ -191,14 +191,14 @@ export class RedgifsApiService {
     return this.ensureAuth().pipe(
       switchMap(() => this.waitForSlot().pipe(
         switchMap(() => this.http.post<T>(`${this.config.baseUrl}${path}`, body, { headers: this.headers(), observe: 'response' }).pipe(
-          map(r => r.body as T),
+          map(r => { const b = r.body as any; if (b?.error) throw new HttpErrorResponse({ error: b.error, status: r.status, statusText: r.statusText, url: r.url ?? undefined }); return b as T; }),
           catchError(err => {
             if (err.status === 429 && this.settings.get().rateLimitEnabled) {
               const s = parseInt(err.headers?.get('Retry-After') || '5', 10);
               this.backoffUntil = Date.now() + s * 1000 + 1000;
               return this.post<T>(path, body);
             }
-            if (err.status === 401) {
+            if (err.status === 401 || err.status === 403) {
               this.token = null;
               this.tokenExpiry = 0;
               localStorage.removeItem(this.TOKEN_KEY);
