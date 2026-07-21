@@ -71,7 +71,7 @@
       span {
         background: rgba(0, 0, 0, 0.75);
         backdrop-filter: blur(4px);
-        color: var(--rg-text-primary);
+        color: #fff;
         padding: 2px 6px;
         border-radius: var(--rg-radius-sm);
         font-size: var(--rg-text-xs);
@@ -98,7 +98,7 @@
       align-items: center;
       justify-content: center;
       cursor: pointer;
-      color: var(--rg-text-primary);
+      color: #fff;
       font-size: 1.1rem;
       z-index: 2;
       transition: transform var(--rg-transition-fast), background var(--rg-transition-fast);
