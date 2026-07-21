@@ -35,7 +35,8 @@
             "styles": [
               "src/global.scss",
               "src/theme/variables.scss",
-              "node_modules/plyr/dist/plyr.css"
+              "node_modules/plyr/dist/plyr.css",
+              "src/theme/plyr-overrides.scss"
             ],
             "scripts": [],
             "browser": "src/main.ts"

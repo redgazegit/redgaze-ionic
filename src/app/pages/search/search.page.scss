@@ -1,8 +1,8 @@
 .gif-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 4px;
-  padding: 4px;
+  gap: var(--rg-space-1);
+  padding: var(--rg-space-1);
 }
 
 .suggestions {
@@ -14,13 +14,14 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 3rem;
-  color: var(--ion-color-medium);
-  gap: 0.5rem;
+  padding: var(--rg-space-12);
+  color: var(--rg-text-muted);
+  gap: var(--rg-space-2);
 }
 
-.loading-spinner {
-  display: flex;
-  justify-content: center;
-  padding: 2rem;
+.skeleton-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: var(--rg-space-1);
+  padding: var(--rg-space-1) 0;
 }

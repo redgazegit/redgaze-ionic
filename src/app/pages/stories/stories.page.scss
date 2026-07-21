@@ -1,28 +1,31 @@
 .stories-content {
-  --background: black;
+  --background: var(--rg-surface-base);
   outline: none;
 }
 
 .loading-overlay {
-  position: fixed;
+  position: absolute;
   inset: 0;
-  z-index: 20;
   display: flex;
-  justify-content: center;
   align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 10;
 }
 
 .progress-bar {
-  position: fixed;
-  top: 56px;
-  left: 0;
-  right: 0;
-  z-index: 10;
-  text-align: center;
-  color: rgba(255,255,255,0.8);
-  font-size: 0.75rem;
-  background: rgba(0,0,0,0.5);
-  padding: 3px 0;
+  position: absolute;
+  top: var(--rg-space-4);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 5;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(8px);
+  padding: var(--rg-space-1) var(--rg-space-3);
+  border-radius: var(--rg-radius-full);
+  font-size: var(--rg-text-xs);
+  font-weight: 600;
+  color: var(--rg-text-primary);
 }
 
 .video-wrapper {
@@ -35,24 +38,28 @@
   bottom: 0;
   left: 0;
   right: 0;
-  padding: 12px;
-  background: linear-gradient(transparent, rgba(0,0,0,0.8));
-  color: white;
+  padding: var(--rg-space-6) var(--rg-space-4) var(--rg-space-4);
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.85));
+  z-index: 2;
 
   h2 {
-    margin: 0 0 4px;
-    font-size: 1rem;
+    font-size: var(--rg-text-lg);
+    font-weight: 700;
+    color: var(--rg-text-primary);
+    margin: 0 0 var(--rg-space-1);
+    letter-spacing: -0.02em;
   }
 
   p {
-    margin: 0 0 8px;
-    font-size: 0.8rem;
-    opacity: 0.7;
+    font-size: var(--rg-text-sm);
+    color: var(--rg-text-secondary);
+    margin: 0 0 var(--rg-space-2);
   }
 
   .tags-row {
     display: flex;
     flex-wrap: wrap;
-    gap: 4px;
+    gap: var(--rg-space-1);
+    ion-chip { margin: 0; }
   }
 }

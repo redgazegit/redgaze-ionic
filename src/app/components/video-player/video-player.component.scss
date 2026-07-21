@@ -1,8 +1,13 @@
 .video-card {
-  border-radius: 12px;
+  border-radius: var(--rg-radius-lg);
   overflow: hidden;
-  background: var(--ion-card-background);
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  background: var(--rg-surface-raised);
+  box-shadow: var(--rg-shadow-md);
+  transition: box-shadow var(--rg-transition-normal);
+
+  &:hover {
+    box-shadow: var(--rg-shadow-lg);
+  }
 
   &.stories-mode {
     border-radius: 0;
@@ -37,7 +42,7 @@
     max-height: 70vh;
     object-fit: contain;
     display: block;
-    background: black;
+    background: var(--rg-surface-base);
   }
 
   .play-overlay {
@@ -45,9 +50,10 @@
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    color: white;
+    color: var(--rg-text-primary);
     opacity: 0.8;
     text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+    transition: opacity var(--rg-transition-fast);
   }
 
   .video-controls {
@@ -56,25 +62,22 @@
     left: 0;
     right: 0;
     background: linear-gradient(transparent, rgba(0,0,0,0.7));
-    padding: 2rem 0.5rem 0.5rem;
+    padding: var(--rg-space-8) var(--rg-space-2) var(--rg-space-2);
     opacity: 0;
-    transition: opacity 0.2s;
-
-    &:hover {
-      opacity: 1;
-    }
+    transition: opacity var(--rg-transition-normal);
 
     .progress-bar {
       height: 3px;
       background: rgba(255,255,255,0.3);
-      border-radius: 2px;
-      margin-bottom: 4px;
+      border-radius: var(--rg-radius-sm);
+      margin-bottom: var(--rg-space-1);
+      overflow: hidden;
 
       .progress-fill {
         height: 100%;
-        background: var(--ion-color-primary);
-        border-radius: 2px;
-        transition: width 0.1s linear;
+        background: var(--rg-brand-500);
+        border-radius: var(--rg-radius-sm);
+        transition: width var(--rg-transition-fast);
       }
     }
 
@@ -90,16 +93,16 @@
       }
 
       .username-label {
-        color: white;
-        font-size: 0.8rem;
-        margin-left: 4px;
+        color: var(--rg-text-primary);
+        font-size: var(--rg-text-xs);
+        margin-left: var(--rg-space-1);
       }
 
       ion-button {
-        --color: white;
-        --padding-start: 4px;
-        --padding-end: 4px;
-        height: 32px;
+        --color: var(--rg-text-primary);
+        --padding-start: var(--rg-space-1);
+        --padding-end: var(--rg-space-1);
+        height: var(--rg-space-8);
       }
     }
   }
@@ -113,20 +116,22 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 8px 12px;
+  padding: var(--rg-space-2) var(--rg-space-3);
 
   .info-left {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--rg-space-2);
 
     .username-label {
-      font-size: 0.85rem;
+      font-size: var(--rg-text-sm);
       font-weight: 500;
-      color: var(--ion-text-color);
+      color: var(--rg-text-primary);
       cursor: pointer;
+      transition: color var(--rg-transition-fast);
 
       &:hover {
+        color: var(--rg-brand-400);
         text-decoration: underline;
       }
     }

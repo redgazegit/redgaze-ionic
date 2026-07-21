@@ -25,8 +25,10 @@
       </ion-segment>
 
       @if (loading && gifs.length === 0) {
-        <div class="loading-spinner">
-          <ion-spinner name="crescent"></ion-spinner>
+        <div class="skeleton-grid">
+          @for (_ of [1,2,3,4,5,6]; track $index) {
+            <app-skeleton-card />
+          }
         </div>
       }
 

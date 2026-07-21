@@ -1,4 +1,4 @@
-import { Injectable, Renderer2, RendererFactory2, inject } from '@angular/core';
+import { Injectable, Renderer2, RendererFactory2, inject, signal } from '@angular/core';
 import { BehaviorSubject, Observable } from 'rxjs';
 
 export type ThemeMode = 'system' | 'light' | 'dark';
@@ -9,6 +9,7 @@ export class ThemeService {
   private renderer: Renderer2;
   private modeSubject = new BehaviorSubject<ThemeMode>(this.loadMode());
   private mediaQuery: MediaQueryList;
+  readonly reducedMotion = signal(false);
 
   mode$: Observable<ThemeMode> = this.modeSubject.asObservable();
 
@@ -17,6 +18,10 @@ export class ThemeService {
     this.mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
     this.mediaQuery.addEventListener('change', () => this.apply());
     this.apply();
+
+    const motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+    this.reducedMotion.set(motionQuery.matches);
+    motionQuery.addEventListener('change', (e) => this.reducedMotion.set(e.matches));
   }
 
   private loadMode(): ThemeMode {

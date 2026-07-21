@@ -11,14 +11,16 @@ import { Gif, TagSuggestion, User } from '../../models/gif.model';
 import { IonAvatar, IonBadge, IonCard, IonCardContent, IonCardHeader, IonCardTitle, IonChip, IonContent, IonHeader, IonIcon, IonItem, IonLabel, IonList, IonSearchbar, IonSegment, IonSegmentButton, IonSpinner, IonToolbar } from '@ionic/angular/standalone';
 
 import { GifCardComponent } from '../../components/gif-card/gif-card.component';
+import { SkeletonCardComponent } from '../../components/skeleton-card/skeleton-card.component';
 
 @Component({
     selector: 'app-search',
     templateUrl: './search.page.html',
     styleUrls: ['./search.page.scss'],
     imports: [
-    IonAvatar, IonBadge, IonCard, IonCardContent, IonCardHeader, IonCardTitle, IonChip, IonContent, IonHeader, IonIcon, IonItem, IonLabel, IonList, IonSearchbar, IonSegment, IonSegmentButton, IonSpinner, IonToolbar,
+    IonAvatar, IonBadge, IonCard, IonCardContent, IonCardHeader, IonCardTitle, IonChip, IonContent, IonHeader, IonIcon, IonItem, IonLabel, IonList, IonSearchbar, IonSegment, IonSegmentButton, IonToolbar,
     GifCardComponent,
+    SkeletonCardComponent,
     RouterLink
 ],
     changeDetection: ChangeDetectionStrategy.OnPush,

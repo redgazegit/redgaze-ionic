@@ -1,0 +1,5 @@
+// Plyr theme overrides — loaded after node_modules/plyr/dist/plyr.css
+// CSS custom properties cascade through Shadow DOM into all Plyr internals
+
+.player-container { --plyr-color-main: var(--rg-brand-500); }
+.plyr { --plyr-video-background: var(--rg-surface-base); }

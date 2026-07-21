@@ -1,0 +1,21 @@
+ion-tab-bar {
+  --background: var(--rg-surface-raised);
+  --border: 1px solid var(--rg-surface-border);
+  padding-top: var(--rg-space-1);
+  height: 56px;
+}
+
+ion-tab-button {
+  --color: var(--rg-text-muted);
+  --color-selected: var(--rg-brand-500);
+  transition: color var(--rg-transition-fast);
+
+  ion-icon {
+    font-size: 1.35rem;
+    transition: transform var(--rg-transition-fast);
+  }
+
+  &:active ion-icon {
+    transform: scale(0.9);
+  }
+}

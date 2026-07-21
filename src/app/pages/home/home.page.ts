@@ -11,6 +11,7 @@ import { IonAvatar, IonBadge, IonButton, IonButtons, IonCard, IonCardContent, Io
 
 import { GifCardComponent } from '../../components/gif-card/gif-card.component';
 import { VideoPlayerComponent } from '../../components/video-player/video-player.component';
+import { SkeletonCardComponent } from '../../components/skeleton-card/skeleton-card.component';
 import { Router, RouterLink } from '@angular/router';
 
 @Component({
@@ -18,9 +19,10 @@ import { Router, RouterLink } from '@angular/router';
     templateUrl: './home.page.html',
     styleUrls: ['./home.page.scss'],
     imports: [
-    IonAvatar, IonBadge, IonButton, IonButtons, IonCard, IonCardContent, IonCardHeader, IonCardTitle, IonChip, IonContent, IonHeader, IonIcon, IonInfiniteScroll, IonInfiniteScrollContent, IonItem, IonLabel, IonRefresher, IonRefresherContent, IonSegment, IonSegmentButton, IonSpinner, IonTitle, IonToolbar,
+    IonAvatar, IonBadge, IonButton, IonButtons, IonCard, IonCardContent, IonCardHeader, IonCardTitle, IonChip, IonContent, IonHeader, IonIcon, IonInfiniteScroll, IonInfiniteScrollContent, IonItem, IonLabel, IonRefresher, IonRefresherContent, IonSegment, IonSegmentButton, IonTitle, IonToolbar,
     GifCardComponent,
     VideoPlayerComponent,
+    SkeletonCardComponent,
     RouterLink
 ],
     changeDetection: ChangeDetectionStrategy.OnPush,

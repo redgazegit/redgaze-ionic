@@ -1,26 +1,17 @@
 .watch-content {
-  --background: black;
+  --background: var(--rg-surface-base);
 }
 
 .video-container {
   width: 100%;
-  max-width: 100%;
-  background: black;
+  max-height: 85vh;
+  background: var(--rg-surface-base);
   display: flex;
   justify-content: center;
-
-  ::ng-deep .plyr {
-    max-height: 85vh;
-    width: 100%;
-  }
-
-  ::ng-deep .plyr__video-wrapper {
-    background: black;
-  }
 }
 
 .gif-details {
-  background: var(--ion-background-color);
+  background: var(--rg-surface-base);
 
   ion-list {
     background: transparent;
@@ -29,22 +20,22 @@
   .detail-chips {
     display: flex;
     flex-direction: column;
-    gap: 0.35rem;
-    padding: 0.75rem 1rem;
-    border-bottom: 1px solid var(--ion-item-border-color, var(--ion-border-color, rgba(0,0,0,0.13)));
+    gap: var(--rg-space-1);
+    padding: var(--rg-space-3) var(--rg-space-4);
+    border-bottom: 1px solid var(--rg-surface-border);
 
     .chip-label {
-      font-size: 0.75rem;
+      font-size: var(--rg-text-xs);
       font-weight: 600;
-      color: var(--ion-color-medium);
+      color: var(--rg-text-muted);
       text-transform: uppercase;
-      letter-spacing: 0.05em;
+      letter-spacing: 0.08em;
     }
 
     .chips-wrap {
       display: flex;
       flex-wrap: wrap;
-      gap: 0.35rem;
+      gap: var(--rg-space-1);
 
       ion-chip {
         margin: 0;
@@ -58,5 +49,5 @@
   justify-content: center;
   align-items: center;
   height: 60vh;
-  color: white;
+  color: var(--rg-text-primary);
 }

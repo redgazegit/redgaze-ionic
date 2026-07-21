@@ -1,10 +1,21 @@
 .gif-card {
   position: relative;
-  border-radius: 8px;
+  border-radius: var(--rg-radius-md);
   overflow: hidden;
-  background: var(--ion-card-background);
+  background: var(--rg-surface-raised);
   cursor: pointer;
   break-inside: avoid;
+  transition: transform var(--rg-transition-fast), box-shadow var(--rg-transition-fast);
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--rg-shadow-lg);
+  }
+
+  &:active {
+    transform: translateY(0);
+    box-shadow: var(--rg-shadow-sm);
+  }
 
   .card-media {
     position: relative;
@@ -19,20 +30,26 @@
       width: 100%;
       height: 100%;
       object-fit: cover;
+      transition: transform var(--rg-transition-slow);
+    }
+
+    &:hover .gif-thumb {
+      transform: scale(1.05);
     }
 
     .card-overlay-top {
       position: absolute;
-      top: 4px;
-      left: 4px;
+      top: var(--rg-space-1);
+      left: var(--rg-space-1);
       display: flex;
-      gap: 4px;
+      gap: var(--rg-space-1);
       z-index: 2;
 
       .verified-badge {
-        color: #3880ff;
+        color: var(--rg-info);
         font-size: 1.1rem;
-        background: rgba(0,0,0,0.5);
+        background: rgba(0, 0, 0, 0.6);
+        backdrop-filter: blur(4px);
         border-radius: 50%;
         width: 22px;
         height: 22px;
@@ -44,57 +61,73 @@
 
     .card-overlay {
       position: absolute;
-      bottom: 4px;
-      left: 4px;
+      bottom: var(--rg-space-1);
+      left: var(--rg-space-1);
       display: flex;
-      gap: 4px;
+      gap: var(--rg-space-1);
       flex-wrap: wrap;
       z-index: 2;
 
       span {
-        background: rgba(0,0,0,0.7);
-        color: white;
+        background: rgba(0, 0, 0, 0.75);
+        backdrop-filter: blur(4px);
+        color: var(--rg-text-primary);
         padding: 2px 6px;
-        border-radius: 4px;
-        font-size: 0.75rem;
+        border-radius: var(--rg-radius-sm);
+        font-size: var(--rg-text-xs);
+        font-weight: 600;
       }
 
       .sexuality-badge {
-        background: rgba(255, 193, 7, 0.8);
+        background: color-mix(in srgb, var(--rg-warning) 85%, transparent);
         color: #000;
       }
     }
 
     .fav-btn {
       position: absolute;
-      top: 4px;
-      right: 4px;
-      background: rgba(0,0,0,0.5);
+      top: var(--rg-space-1);
+      right: var(--rg-space-1);
+      background: rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(4px);
       border: none;
       border-radius: 50%;
-      width: 32px;
-      height: 32px;
+      width: var(--rg-space-8);
+      height: var(--rg-space-8);
       display: flex;
       align-items: center;
       justify-content: center;
       cursor: pointer;
-      color: white;
+      color: var(--rg-text-primary);
       font-size: 1.1rem;
       z-index: 2;
+      transition: transform var(--rg-transition-fast), background var(--rg-transition-fast);
 
       &:hover {
-        background: rgba(0,0,0,0.8);
+        background: rgba(0, 0, 0, 0.8);
+        transform: scale(1.1);
+      }
+
+      &:active {
+        transform: scale(0.9);
       }
     }
   }
 
   .card-info {
-    padding: 4px 8px 8px;
+    padding: var(--rg-space-1) var(--rg-space-2) var(--rg-space-2);
 
     .username {
-      font-size: 0.8rem;
-      color: var(--ion-color-primary);
+      font-size: var(--rg-text-xs);
+      font-weight: 500;
+      color: var(--rg-brand-400);
       cursor: pointer;
+      transition: color var(--rg-transition-fast);
+
+      &:hover {
+        color: var(--rg-brand-300);
+        text-decoration: underline;
+      }
     }
   }
 }

@@ -1,6 +1,24 @@
+ion-list { background: transparent; }
+
 ion-list-header {
+  font-size: var(--rg-text-xs);
   font-weight: 600;
-  font-size: 0.85rem;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  color: var(--rg-text-muted);
+  padding-left: var(--rg-space-4);
+  margin-top: var(--rg-space-4);
+}
+
+ion-item {
+  --background: var(--rg-surface-raised);
+  --border-color: var(--rg-surface-border);
+  --padding-start: var(--rg-space-4);
+  --inner-padding-end: 0;
+  margin-bottom: 1px;
+}
+
+ion-note {
+  color: var(--rg-text-secondary);
+  font-size: var(--rg-text-sm);
 }
