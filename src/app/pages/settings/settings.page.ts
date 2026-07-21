@@ -23,9 +23,16 @@ export class SettingsPage {
   }
 
   toggleDarkMode(): void {
-    const next: ThemeMode = this.currentMode() === 'dark' ? 'light' : 'dark';
+    const order: ThemeMode[] = ['system', 'dark', 'light'];
+    const idx = order.indexOf(this.currentMode());
+    const next = order[(idx + 1) % order.length];
     this.theme.setMode(next);
     this.currentMode.set(next);
+  }
+
+  isDark(): boolean {
+    const mode = this.currentMode();
+    return mode === 'dark' || (mode === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
   }
 
   toggleHls(): void {

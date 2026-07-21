@@ -8,8 +8,8 @@
   <ion-list>
     <ion-list-header>Appearance</ion-list-header>
     <ion-item data-testid="setting-dark-mode">
-      <ion-label>Dark Mode — {{ currentMode() === 'dark' ? 'ON' : 'OFF' }}</ion-label>
-      <ion-toggle data-testid="dark-mode-toggle" [checked]="currentMode() === 'dark'" (ionChange)="toggleDarkMode()"></ion-toggle>
+      <ion-label>Dark Mode — {{ currentMode() }}</ion-label>
+      <ion-toggle data-testid="dark-mode-toggle" [checked]="isDark()" (ionChange)="toggleDarkMode()"></ion-toggle>
     </ion-item>
 
     <ion-list-header>Playback</ion-list-header>
