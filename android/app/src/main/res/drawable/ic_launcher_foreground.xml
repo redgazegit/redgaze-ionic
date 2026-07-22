@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="512"
+    android:viewportHeight="512">
+
+    <group android:translateX="25" android:translateY="36" android:scaleX="2.2" android:scaleY="2.2">
+
+        <!-- Glow layer 1 (wide faint) -->
+        <path
+            android:pathData="M 30 100 C 70 45, 140 45, 180 100 C 140 155, 70 155, 30 100 Z"
+            android:strokeWidth="15"
+            android:strokeColor="#1AFF3344"
+            android:strokeLineCap="round" />
+
+        <!-- Glow layer 2 (medium) -->
+        <path
+            android:pathData="M 30 100 C 70 45, 140 45, 180 100 C 140 155, 70 155, 30 100 Z"
+            android:strokeWidth="9"
+            android:strokeColor="#4DFF3344"
+            android:strokeLineCap="round" />
+
+        <!-- Core outer eye shape with gradient -->
+        <path
+            android:pathData="M 30 100 C 70 45, 140 45, 180 100 C 140 155, 70 155, 30 100 Z"
+            android:strokeWidth="5"
+            android:strokeLineCap="round">
+            <aapt:attr name="android:strokeColor">
+                <gradient
+                    android:startX="30" android:startY="45"
+                    android:endX="180" android:endY="155"
+                    android:type="linear">
+                    <item android:offset="0.0" android:color="#FFFF3344" />
+                    <item android:offset="1.0" android:color="#FF990011" />
+                </gradient>
+            </aapt:attr>
+        </path>
+
+        <!-- Inner eye contour -->
+        <path
+            android:pathData="M 50 100 C 80 65, 130 65, 160 100 C 130 135, 80 135, 50 100 Z"
+            android:fillColor="#FF16161a"
+            android:strokeColor="#FF2a2a35"
+            android:strokeWidth="2" />
+
+        <!-- Iris glow outer -->
+        <path
+            android:pathData="M 105 65 A 35 35 0 1 0 105 135 A 35 35 0 1 0 105 65 Z"
+            android:fillColor="#33FF4D4D" />
+
+        <!-- Iris core with radial gradient -->
+        <path
+            android:pathData="M 105 70 A 30 30 0 1 0 105 130 A 30 30 0 1 0 105 70 Z">
+            <aapt:attr name="android:fillColor">
+                <gradient
+                    android:centerX="105" android:centerY="100"
+                    android:gradientRadius="30"
+                    android:type="radial">
+                    <item android:offset="0.0" android:color="#FFFF4D4D" />
+                    <item android:offset="0.6" android:color="#FFCC001B" />
+                    <item android:offset="1.0" android:color="#FF66000D" />
+                </gradient>
+            </aapt:attr>
+        </path>
+
+        <!-- Tech pupil -->
+        <path
+            android:pathData="M 105 78 L 111 100 L 105 122 L 99 100 Z"
+            android:fillColor="#FF050507" />
+
+        <!-- Red center dot -->
+        <path
+            android:pathData="M 105 96 A 4 4 0 1 0 105 104 A 4 4 0 1 0 105 96 Z"
+            android:fillColor="#FFFF9999" />
+
+        <!-- Catchlight top -->
+        <path
+            android:pathData="M 90 85 Q 105 75 120 85 Q 105 82 90 85 Z"
+            android:fillColor="#B3FFFFFF" />
+
+        <!-- Glint bottom-right -->
+        <path
+            android:pathData="M 122 109.5 A 2.5 2.5 0 1 0 122 114.5 A 2.5 2.5 0 1 0 122 109.5 Z"
+            android:fillColor="#80FFFFFF" />
+
+    </group>
+</vector>
