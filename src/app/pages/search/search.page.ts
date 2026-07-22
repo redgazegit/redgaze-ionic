@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, signal, effect, inject, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, OnDestroy, signal, effect, inject, ChangeDetectionStrategy, computed } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { injectQuery } from '@tanstack/angular-query-experimental';
 import { Subject, Subscription, firstValueFrom, of } from 'rxjs';
@@ -9,20 +9,22 @@ import { WatchQueueService } from '../../services/watch-queue.service';
 import { searchFeedGenerator } from '../../services/feed-generators';
 import { Gif, TagSuggestion, User } from '../../models/gif.model';
 
-import { IonAvatar, IonBadge, IonCard, IonCardContent, IonCardHeader, IonCardTitle, IonChip, IonContent, IonHeader, IonIcon, IonItem, IonLabel, IonList, IonSearchbar, IonSegment, IonSegmentButton, IonSpinner, IonToolbar } from '@ionic/angular/standalone';
+import { IonAvatar, IonBadge, IonButton, IonCard, IonCardContent, IonCardHeader, IonCardTitle, IonChip, IonContent, IonHeader, IonIcon, IonItem, IonLabel, IonList, IonSearchbar, IonSegment, IonSegmentButton, IonSpinner, IonToolbar } from '@ionic/angular/standalone';
 
 import { GifCardComponent } from '../../components/gif-card/gif-card.component';
 import { SkeletonCardComponent } from '../../components/skeleton-card/skeleton-card.component';
+import { JsonPipe } from '@angular/common';
 
 @Component({
     selector: 'app-search',
     templateUrl: './search.page.html',
     styleUrls: ['./search.page.scss'],
     imports: [
-    IonAvatar, IonBadge, IonCard, IonCardContent, IonCardHeader, IonCardTitle, IonChip, IonContent, IonHeader, IonIcon, IonItem, IonLabel, IonList, IonSearchbar, IonSegment, IonSegmentButton, IonToolbar,
+    IonAvatar, IonBadge, IonButton, IonCard, IonCardContent, IonCardHeader, IonCardTitle, IonChip, IonContent, IonHeader, IonIcon, IonItem, IonLabel, IonList, IonSearchbar, IonSegment, IonSegmentButton, IonToolbar,
     GifCardComponent,
     SkeletonCardComponent,
-    RouterLink
+    RouterLink,
+    JsonPipe
 ],
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
@@ -35,12 +37,11 @@ export class SearchPage implements OnInit, OnDestroy {
 
   readonly query = signal('');
   suggestions: TagSuggestion[] = [];
-  results: Gif[] = [];
-  relatedUsers: User[] = [];
-  relatedTags: string[] = [];
+  // results: Gif[] = [];
+  // relatedUsers: User[] = [];
+  // relatedTags: string[] = [];
   readonly searchType = signal<'gifs' | 'images'>('gifs');
   hasSearched = false;
-  loading = false;
   private readonly searchQuery = signal('');
   private readonly searchTypeSig = signal<'gifs' | 'images'>('gifs');
   private suggestSubject = new Subject<string>();
@@ -48,10 +49,9 @@ export class SearchPage implements OnInit, OnDestroy {
   private entered = false;
 
   readonly searchResultQuery = injectQuery(() => ({
-    queryKey: ['search', this.searchTypeSig(), this.searchQuery()],
-    queryFn: () => {
-      const q = this.searchQuery();
-      const t = this.searchTypeSig();
+    queryKey: ['search', this.searchTypeSig(), this.searchQuery()] as const,
+    queryFn: (param) => {
+      const [_, t, q] = param.queryKey
       const obs = t === 'gifs'
         ? this.api.searchGifs(q)
         : this.api.searchImages(q);
@@ -61,6 +61,13 @@ export class SearchPage implements OnInit, OnDestroy {
     staleTime: 1000 * 60 * 2,
   }));
 
+  
+  readonly results = computed(() => this.searchResultQuery.data()?.gifs ?? []);
+  readonly relatedUsers = computed(() => this.searchResultQuery.data()?.users ?? []);
+  readonly relatedTags = computed(() => this.searchResultQuery.data()?.tags ?? []);
+  readonly searchError = computed(() => this.searchResultQuery.isError());
+  readonly loading = this.searchResultQuery.isFetching;
+
   constructor() {
     this.suggestSub = this.suggestSubject.pipe(
       debounceTime(250),
@@ -68,15 +75,15 @@ export class SearchPage implements OnInit, OnDestroy {
       switchMap(q => q ? this.api.getTagSuggestions(q) : of([]))
     ).subscribe(s => this.suggestions = s);
 
-    effect(() => {
-      const r = this.searchResultQuery.data();
-      if (r) {
-        this.results = r.gifs;
-        this.relatedUsers = r.users || [];
-        this.relatedTags = r.tags || [];
-        this.loading = false;
-      }
-    });
+    // effect(() => {
+    //   const r = this.searchResultQuery.data();
+    //   if (r) {
+    //     this.results = r.gifs;
+    //     this.relatedUsers = r.users || [];
+    //     this.relatedTags = r.tags || [];
+    //     this.loading = false;
+    //   }
+    // });
   }
 
   ngOnDestroy(): void {
@@ -107,12 +114,12 @@ export class SearchPage implements OnInit, OnDestroy {
     const q = (value ?? this.query()).trim();
     if (!q) return;
     this.hasSearched = true;
-    if (this.searchQuery() !== q) {
-      this.results = [];
-      this.relatedUsers = [];
-      this.relatedTags = [];
-      this.loading = true;
-    }
+    // if (this.searchQuery() !== q) {
+      // this.results = [];
+      // this.relatedUsers = [];
+      // this.relatedTags = [];
+      // this.loading = true;
+    // }
     this.suggestions = [];
     this.suggestSubject.next('');
     this.searchTypeSig.set(this.searchType());
@@ -128,10 +135,13 @@ export class SearchPage implements OnInit, OnDestroy {
     }
   }
 
-  onClear(): void {
-    this.results = [];
+  onClear(searchbar: any): void {
+    // this.results = [];
     this.hasSearched = false;
     this.query.set('');
+    this.searchQuery.set('');
+    this.suggestions = [];
+    searchbar.value = '';
   }
 
   selectSuggestion(tag: string): void {
@@ -145,7 +155,7 @@ export class SearchPage implements OnInit, OnDestroy {
 
   onCardClick(gifId: string, index: number): void {
     if (this.ss.get().storiesNavigation) {
-      this.watchQueue.setQueue(this.results, index, searchFeedGenerator(this.api, this.query(), this.searchType()));
+      this.watchQueue.setQueue(this.results(), index, searchFeedGenerator(this.api, this.query(), this.searchType()));
       this.router.navigate(['/stories', gifId]);
     } else {
       this.router.navigate(['/watch', gifId]);

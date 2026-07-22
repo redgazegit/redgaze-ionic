@@ -79,3 +79,24 @@
   gap: var(--rg-space-4);
   padding: var(--rg-space-2);
 }
+
+.error-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--rg-space-3);
+  padding: var(--rg-space-8) var(--rg-space-4);
+  text-align: center;
+
+  ion-icon {
+    font-size: 3rem;
+    opacity: 0.5;
+  }
+
+  h2 {
+    margin: 0;
+    font-weight: 400;
+    color: var(--rg-text-secondary);
+  }
+}

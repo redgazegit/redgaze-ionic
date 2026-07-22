@@ -19,4 +19,5 @@ export const routes: Routes = [
   { path: 'stories/:id', component: StoriesPage },
   { path: 'settings', component: SettingsPage },
   { path: '', redirectTo: 'home', pathMatch: 'full' },
+  { path: '**', redirectTo: 'home' },
 ];

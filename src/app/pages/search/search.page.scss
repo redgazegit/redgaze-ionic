@@ -24,4 +24,9 @@
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   gap: var(--rg-space-1);
   padding: var(--rg-space-1) 0;
+  /* Restrict the container height to the viewport */
+  height: 100vh; /* Adjust this to calc(100vh - headerHeight) if needed */
+  
+  /* Crucial: Hides all the extra skeletons that spill past the bottom */
+  overflow: hidden;
 }

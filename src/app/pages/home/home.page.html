@@ -24,29 +24,40 @@
         }
       </ion-segment>
 
-      @if (loading && gifs.length === 0) {
+      @if (feedError()) {
+        <div class="error-state">
+          <ion-icon name="alert-circle-outline"></ion-icon>
+          <h2>Failed to load feed</h2>
+          <ion-button fill="outline" (click)="trendingGifsQuery.refetch(); feedQuery.refetch()">Retry</ion-button>
+        </div>
+      } @else if (loading() && gifs().length === 0) {
         <div class="skeleton-grid">
           @for (_ of [1,2,3,4,5,6]; track $index) {
             <app-skeleton-card />
           }
         </div>
-      }
-
-      <div [class.hidden]="viewMode() !== 'grid'" class="gif-grid" role="feed">
-        @for (gif of gifs; track gif.id; let i = $index) {
-          <app-gif-card [gif]="gif" (cardClick)="onCardClick($event, i)" (creatorClick)="onCreatorClick($event)"></app-gif-card>
-        }
-      </div>
-
-      <div [class.hidden]="viewMode() !== 'list'" class="gif-list" role="feed">
-        @for (gif of gifs; track gif.id) {
-          @if (ss.get().gridAutoplay) {
-            <app-video-player [gif]="gif"></app-video-player>
-          } @else {
-            <app-gif-card [gif]="gif" (cardClick)="onCardClick($event, $index)" (creatorClick)="onCreatorClick($event)"></app-gif-card>
+      } @else if (gifs().length === 0) {
+        <div class="empty-state">
+          <ion-icon name="file-tray-outline"></ion-icon>
+          <p>No GIFs in this section</p>
+        </div>
+      } @else {
+        <div [class.hidden]="viewMode() !== 'grid'" class="gif-grid" role="feed">
+          @for (gif of gifs(); track gif.id; let i = $index) {
+            <app-gif-card [gif]="gif" (cardClick)="onCardClick($event, i)" (creatorClick)="onCreatorClick($event)"></app-gif-card>
           }
-        }
-      </div>
+        </div>
+
+        <div [class.hidden]="viewMode() !== 'list'" class="gif-list" role="feed">
+          @for (gif of gifs(); track gif.id) {
+            @if (ss.get().gridAutoplay) {
+              <app-video-player [gif]="gif"></app-video-player>
+            } @else {
+              <app-gif-card [gif]="gif" (cardClick)="onCardClick($event, $index)" (creatorClick)="onCreatorClick($event)"></app-gif-card>
+            }
+          }
+        </div>
+      }
 
       <ion-infinite-scroll #infiniteScroll (ionInfinite)="loadMore($event)">
         <ion-infinite-scroll-content loadingText="Loading more...">
@@ -58,8 +69,8 @@
       <ion-card data-testid="sidebar-tags">
         <ion-card-header><ion-card-title>Trending Tags</ion-card-title></ion-card-header>
         <ion-card-content>
-          @if (trendingTags.length) {
-            @for (tag of trendingTags; track tag) {
+          @if (trendingTags().length) {
+            @for (tag of trendingTags(); track tag) {
               <ion-chip [routerLink]="['/search', tag.name]" color="primary" [attr.data-testid]="'trending-tag-' + tag.name">
                 {{ tag.name }}
               </ion-chip>
@@ -77,8 +88,8 @@
       <ion-card data-testid="sidebar-creators">
         <ion-card-header><ion-card-title>Popular Creators</ion-card-title></ion-card-header>
         <ion-card-content>
-          @if (trendingCreators.length) {
-            @for (c of trendingCreators; track c) {
+          @if (trendingCreators().length) {
+            @for (c of trendingCreators(); track c) {
               <ion-item [routerLink]="['/creator', c.username]" detail lines="full" [attr.data-testid]="'trending-creator-' + c.username">
                 <ion-avatar slot="start">
                   <img [src]="api.proxyUserpicUrl(c.profileImageUrl)" [alt]="c.username">
@@ -110,8 +121,8 @@
       <ion-card data-testid="sidebar-niches">
         <ion-card-header><ion-card-title>Niches</ion-card-title></ion-card-header>
         <ion-card-content>
-          @if (trendingNiches.length) {
-            @for (n of trendingNiches; track n) {
+          @if (trendingNiches().length) {
+            @for (n of trendingNiches(); track n) {
               <ion-chip [routerLink]="['/niche', n.id]" color="secondary" [attr.data-testid]="'trending-niche-' + n.id">
                 {{ n.name }}
               </ion-chip>

@@ -9,7 +9,8 @@ export class ThemeService {
   private renderer: Renderer2;
   private modeSubject = new BehaviorSubject<ThemeMode>(this.loadMode());
   private mediaQuery: MediaQueryList;
-  readonly reducedMotion = signal(false);
+  private readonly _reducedMotion = signal(false);
+  readonly reducedMotion = this._reducedMotion.asReadonly();
 
   mode$: Observable<ThemeMode> = this.modeSubject.asObservable();
 
@@ -20,8 +21,8 @@ export class ThemeService {
     this.apply();
 
     const motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
-    this.reducedMotion.set(motionQuery.matches);
-    motionQuery.addEventListener('change', (e) => this.reducedMotion.set(e.matches));
+    this._reducedMotion.set(motionQuery.matches);
+    motionQuery.addEventListener('change', (e) => this._reducedMotion.set(e.matches));
   }
 
   private loadMode(): ThemeMode {

@@ -44,6 +44,21 @@
       animation: pulse 1.5s ease-in-out infinite;
     }
 
+    .img-fallback {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--rg-surface-overlay);
+      color: var(--rg-text-muted);
+
+      ion-icon {
+        font-size: 1.5rem;
+        opacity: 0.5;
+      }
+    }
+
     @keyframes pulse {
       0%, 100% { opacity: 1; }
       50% { opacity: 0.4; }

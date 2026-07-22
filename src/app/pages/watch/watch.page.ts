@@ -1,4 +1,4 @@
-import { Component, OnInit, viewChild, ElementRef, OnDestroy, signal, effect, inject, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, viewChild, ElementRef, OnDestroy, signal, computed, effect, inject, ChangeDetectionStrategy } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { injectQuery, injectMutation } from '@tanstack/angular-query-experimental';
 import { firstValueFrom } from 'rxjs';
@@ -63,27 +63,34 @@ export class WatchPage implements OnInit, OnDestroy {
       firstValueFrom(this.api.trackViewedDuration(gifId, duration)),
   }));
 
-  get gif(): Gif | undefined { return this.gifQuery.data(); }
-  get loading(): boolean { return this.gifQuery.isLoading(); }
+  readonly gif = computed(() => this.gifQuery.data());
+  readonly loading = computed(() => this.gifQuery.isLoading());
+  readonly error = computed(() => this.gifQuery.isError());
 
   constructor() {
     const settings = this.settings;
 
     this.quality = settings.get().quality;
     effect(() => {
-      const g = this.gif;
-      if (g) {
-        const thumb = g.urls.thumbnail || '';
-        if (Capacitor.isNativePlatform()) {
-          this.mediaProxy.proxyImage(thumb).then(url => this.posterSrc.set(url));
-        } else {
-          this.posterSrc.set(this.api.proxyUrl(thumb));
-        }
-      }
+      const g = this.gif();
+      if (!g) return;
+      const thumb = g.urls.thumbnail || '';
+      setTimeout(() => this.setPoster(thumb));
+    });
+    effect(() => {
+      const g = this.gif();
       if (g && this.videoRef()?.nativeElement && !this.player) {
         this.initPlayer();
       }
     });
+  }
+
+  private setPoster(thumb: string): void {
+    if (Capacitor.isNativePlatform()) {
+      this.mediaProxy.proxyImage(thumb).then(url => this.posterSrc.set(url));
+    } else {
+      this.posterSrc.set(this.api.proxyUrl(thumb));
+    }
   }
 
   ngOnInit(): void {
@@ -95,13 +102,11 @@ export class WatchPage implements OnInit, OnDestroy {
 
   readonly posterSrc = signal('');
 
-  get hasHd(): boolean {
-    return !!this.gif?.urls.hd;
-  }
+  readonly hasHd = computed(() => !!this.gif()?.urls.hd);
 
   goToCreator(): void {
-    if (this.gif?.userName) {
-      this.router.navigate(['/creator', this.gif.userName]);
+    if (this.gif()?.userName) {
+      this.router.navigate(['/creator', this.gif()!.userName]);
     }
   }
 
@@ -116,8 +121,8 @@ export class WatchPage implements OnInit, OnDestroy {
 
   private async loadMp4(): Promise<void> {
     const video = this.videoRef()?.nativeElement;
-    if (!video || !this.gif) return;
-    const rawUrl = this.quality === 'hd' ? this.gif.urls.hd : this.gif.urls.sd;
+    if (!video || !this.gif()) return;
+    const rawUrl = this.quality === 'hd' ? this.gif()!.urls.hd : this.gif()!.urls.sd;
     const url = rawUrl || '';
     if (Capacitor.isNativePlatform()) {
       video.src = await this.mediaProxy.proxyVideoProgressive(url);
@@ -135,7 +140,7 @@ export class WatchPage implements OnInit, OnDestroy {
 
   private async initHls(): Promise<void> {
     const video = this.videoRef()?.nativeElement;
-    if (!video || !this.gif) return;
+    if (!video || !this.gif()) return;
 
     this.hls?.destroy();
     this.hls = undefined;
@@ -143,7 +148,7 @@ export class WatchPage implements OnInit, OnDestroy {
 
     try {
       const token = await this.api.ensureAuthToken();
-      const blobUrl = await this.mediaProxy.proxyM3u8(this.api.hlsUrl(this.gif.id, this.quality), token);
+      const blobUrl = await this.mediaProxy.proxyM3u8(this.api.hlsUrl(this.gif()!.id, this.quality), token);
       this.blobUrls.push(blobUrl);
 
       this.hls = new Hls({ fLoader: CacheFragmentLoader as any });
@@ -166,8 +171,8 @@ export class WatchPage implements OnInit, OnDestroy {
 
   private async initPlayer(): Promise<void> {
     const video = this.videoRef()?.nativeElement;
-    if (this.player || !video || !this.gif) return;
-    const useHls = this.settings.get().playbackMode === 'hls' && this.gif.hls && Hls.isSupported();
+    if (this.player || !video || !this.gif()) return;
+    const useHls = this.settings.get().playbackMode === 'hls' && this.gif()?.hls && Hls.isSupported();
 
     if (useHls) {
       this.usingHls = true;
@@ -188,7 +193,8 @@ export class WatchPage implements OnInit, OnDestroy {
       return;
     }
 
-    const rawUrl = this.quality === 'hd' ? this.gif.urls.hd : this.gif.urls.sd;
+    const gif = this.gif()!;
+    const rawUrl = this.quality === 'hd' ? gif.urls.hd : gif.urls.sd;
     const url = rawUrl || '';
     if (Capacitor.isNativePlatform()) {
       video.src = await this.mediaProxy.proxyVideoProgressive(url);
@@ -237,10 +243,11 @@ export class WatchPage implements OnInit, OnDestroy {
   }
 
   private sendDuration(): void {
-    if (!this.gif || this.playStart === 0) return;
+    const g = this.gif();
+    if (!g || this.playStart === 0) return;
     const elapsed = Date.now() - this.playStart;
     if (elapsed > 1000) {
-      this.trackDurationMutation.mutate({ gifId: this.gif.id, duration: elapsed });
+      this.trackDurationMutation.mutate({ gifId: g.id, duration: elapsed });
     }
     this.playStart = 0;
   }
@@ -248,26 +255,26 @@ export class WatchPage implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     this.sendDuration();
     this.videoRef()?.nativeElement?.pause();
-    this.videoState.onPause(this.gif?.id || '');
+    this.videoState.onPause(this.gif()?.id || '');
     this.hls?.destroy();
     this.player?.destroy();
     this.blobUrls.forEach(url => this.mediaProxy.abortProgressiveStream(url));
   }
 
   download(): void {
-    if (!this.gif) return;
-    const url = this.quality === 'hd' ? this.gif.urls.hd : this.gif.urls.sd;
+    const g = this.gif();
+    if (!g) return;
+    const url = this.quality === 'hd' ? g.urls.hd : g.urls.sd;
     const a = document.createElement('a');
     a.href = url || '';
-    a.download = `${this.gif.id}.mp4`;
+    a.download = `${g.id}.mp4`;
     a.click();
   }
 
-  get isFav(): boolean {
-    return this.gif ? this.favService.isFavorite(this.gif.id) : false;
-  }
+  readonly isFav = computed(() => this.gif() ? this.favService.isFavorite(this.gif()!.id) : false);
 
   toggleFav(): void {
-    if (this.gif) this.favService.toggle(this.gif);
+    const g = this.gif();
+    if (g) this.favService.toggle(g);
   }
 }

@@ -1,21 +1,32 @@
 <ion-header>
   <ion-toolbar>
     <ion-buttons slot="start">
-      <ion-back-button></ion-back-button>
+      <ion-back-button defaultHref="/home"></ion-back-button>
     </ion-buttons>
     <ion-title data-testid="niche-title">{{ nicheId() }}</ion-title>
   </ion-toolbar>
 </ion-header>
 
 <ion-content>
-  @if (loading) {
+  @if (error()) {
+    <div class="error-state">
+      <ion-icon name="alert-circle-outline"></ion-icon>
+      <h2>Failed to load niche</h2>
+      <ion-button fill="outline" (click)="gifsQuery.refetch()">Retry</ion-button>
+    </div>
+  } @else if (loading()) {
     <div class="loading-spinner">
       <ion-spinner name="crescent"></ion-spinner>
+    </div>
+  } @else if (empty()) {
+    <div class="empty-state">
+      <ion-icon name="file-tray-outline"></ion-icon>
+      <p>No GIFs in this niche</p>
     </div>
   }
 
   <div class="gif-grid" role="feed">
-    @for (gif of gifs; track gif.id; let i = $index) {
+    @for (gif of gifs(); track gif.id; let i = $index) {
       <app-gif-card [gif]="gif" (cardClick)="onCardClick($event, i)" (creatorClick)="onCreatorClick($event)"></app-gif-card>
     }
   </div>

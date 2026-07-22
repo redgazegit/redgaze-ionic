@@ -19,7 +19,7 @@
       </div>
       <div class="info-right">
         <ion-button data-testid="vp-fav-btn" fill="clear" size="small" (click)="toggleFav()">
-          <ion-icon [name]="isFav ? 'heart' : 'heart-outline'"></ion-icon>
+          <ion-icon [name]="isFav() ? 'heart' : 'heart-outline'"></ion-icon>
         </ion-button>
         <ion-button data-testid="vp-download-btn" fill="clear" size="small" (click)="download()">
           <ion-icon name="download-outline"></ion-icon>

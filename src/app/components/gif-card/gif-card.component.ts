@@ -1,4 +1,4 @@
-import { Component, inject, input, output, signal, ChangeDetectionStrategy, OnInit, OnDestroy } from '@angular/core';
+import { Component, inject, input, output, signal, computed, ChangeDetectionStrategy, OnInit, OnDestroy } from '@angular/core';
 import { Gif } from '../../models/gif.model';
 import { FavoritesService } from '../../services/favorites.service';
 import { RedgifsApiService } from '../../services/redgifs-api.service';
@@ -14,6 +14,7 @@ import { IonIcon } from '@ionic/angular/standalone';
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class GifCardComponent implements OnInit, OnDestroy {
+  loadingState = input<'lazy'|'eager'>('lazy',{alias:'loading'})
   private favService = inject(FavoritesService);
   private api = inject(RedgifsApiService);
   private mediaProxy = inject(MediaProxyService);
@@ -21,6 +22,7 @@ export class GifCardComponent implements OnInit, OnDestroy {
   readonly gif = input.required<Gif>();
   readonly posterSrc = signal('');
   readonly loading = signal(true);
+  readonly imageError = signal(false);
 
   cardClick = output<string>();
   creatorClick = output<string>();
@@ -39,9 +41,7 @@ export class GifCardComponent implements OnInit, OnDestroy {
     if (this.blobUrl) URL.revokeObjectURL(this.blobUrl);
   }
 
-  get isFav(): boolean {
-    return this.favService.isFavorite(this.gif().id);
-  }
+  readonly isFav = computed(() => this.favService.isFavorite(this.gif().id));
 
   toggleFav(event: Event): void {
     event.stopPropagation();

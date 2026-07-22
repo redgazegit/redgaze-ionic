@@ -2,20 +2,21 @@ import { Injectable, signal } from '@angular/core';
 
 @Injectable({ providedIn: 'root' })
 export class VideoStateService {
-  readonly activeGifId = signal<string | null>(null);
+  private readonly _activeGifId = signal<string | null>(null);
+  readonly activeGifId = this._activeGifId.asReadonly();
 
   requestPlay(gifId: string): boolean {
-    const current = this.activeGifId();
+    const current = this._activeGifId();
     if (current === null || current === gifId) {
-      this.activeGifId.set(gifId);
+      this._activeGifId.set(gifId);
       return true;
     }
     return false;
   }
 
   onPause(gifId: string): void {
-    if (this.activeGifId() === gifId) {
-      this.activeGifId.set(null);
+    if (this._activeGifId() === gifId) {
+      this._activeGifId.set(null);
     }
   }
 }

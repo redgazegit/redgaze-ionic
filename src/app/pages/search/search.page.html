@@ -6,7 +6,7 @@
       [debounce]="300"
       [value]="query()"
       (ionInput)="onSearchInput($event)"
-      (ionClear)="onClear()"
+      (ionClear)="onClear(searchInput)"
       placeholder="Search tags, creators..."
       animated
       showCancelButton="focus"
@@ -44,21 +44,28 @@
     </div>
   }
 
-  @if (loading) {
+  @if (loading()) {
     <div class="skeleton-grid">
-      @for (_ of [1,2,3,4,5,6]; track $index) {
+      @for (_ of [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24]; track $index) {
         <app-skeleton-card />
       }
     </div>
   }
 
-  @if (hasSearched && !loading) {
+  @if (searchError()) {
+    <div class="error-state">
+      <ion-icon name="alert-circle-outline"></ion-icon>
+      <h2>Search failed</h2>
+      <p>Check connection and try again</p>
+      <ion-button fill="outline" (click)="search()">Retry</ion-button>
+    </div>
+  } @else if (hasSearched && !loading()) {
     <div>
-      @if (relatedUsers.length) {
+      @if (relatedUsers().length) {
         <ion-card data-testid="related-creators">
           <ion-card-header><ion-card-title>Related Creators</ion-card-title></ion-card-header>
           <ion-card-content>
-            @for (u of relatedUsers.slice(0, 5); track u.username) {
+            @for (u of relatedUsers().slice(0, 5); track u.username) {
               <ion-item [attr.data-testid]="'related-creator-' + u.username" [routerLink]="['/creator', u.username]" detail lines="full">
                 <ion-avatar slot="start">
                   <img [src]="api.proxyUserpicUrl(u.profileImageUrl)" [alt]="u.username">
@@ -75,11 +82,11 @@
           </ion-card-content>
         </ion-card>
       }
-      @if (relatedTags.length) {
+      @if (relatedTags().length) {
         <ion-card data-testid="related-tags">
           <ion-card-header><ion-card-title>Related Tags</ion-card-title></ion-card-header>
           <ion-card-content>
-            @for (t of relatedTags.slice(0, 15); track t) {
+            @for (t of relatedTags().slice(0, 15); track t) {
               <ion-chip [attr.data-testid]="'related-tag-' + t" [routerLink]="['/search', t]" color="primary">
                 {{ t }}
               </ion-chip>
@@ -88,10 +95,10 @@
         </ion-card>
       }
       <div class="gif-grid" role="feed">
-        @for (gif of results; track gif.id; let i = $index) {
+        @for (gif of results(); track gif.id; let i = $index) {
           <app-gif-card [gif]="gif" (cardClick)="onCardClick($event, i)" (creatorClick)="onCreatorClick($event)"></app-gif-card>
         }
-        @if (results.length === 0) {
+        @if (results().length === 0) {
           <div data-testid="no-results" class="no-results">
             <ion-icon name="sad-outline" size="large"></ion-icon>
             <p>No results found for "{{ query() }}"</p>

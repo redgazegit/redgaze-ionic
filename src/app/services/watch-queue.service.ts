@@ -15,12 +15,18 @@ export class WatchQueueService {
   private prefetchPromise: Promise<IteratorResult<Gif[]>> | null = null;
   private exhausted = false;
 
-  readonly current = signal<Gif | null>(null);
-  readonly position = signal(1);
-  readonly total = signal(0);
-  readonly hasNext = signal(false);
-  readonly hasPrev = signal(false);
-  readonly loading = signal(false);
+  private readonly _current = signal<Gif | null>(null);
+  readonly current = this._current.asReadonly();
+  private readonly _position = signal(1);
+  readonly position = this._position.asReadonly();
+  private readonly _total = signal(0);
+  readonly total = this._total.asReadonly();
+  private readonly _hasNext = signal(false);
+  readonly hasNext = this._hasNext.asReadonly();
+  private readonly _hasPrev = signal(false);
+  readonly hasPrev = this._hasPrev.asReadonly();
+  private readonly _loading = signal(false);
+  readonly loading = this._loading.asReadonly();
 
   constructor() {
     effect(() => {
@@ -56,7 +62,7 @@ export class WatchQueueService {
       return true;
     }
     if (this.exhausted || !this.generator) return false;
-    this.loading.set(true);
+    this._loading.set(true);
     try {
       const r = await this.consumePrefetch();
       if (r) {
@@ -69,7 +75,7 @@ export class WatchQueueService {
       this.sync();
       return false;
     } finally {
-      this.loading.set(false);
+      this._loading.set(false);
     }
   }
 
@@ -115,12 +121,12 @@ export class WatchQueueService {
     this.generator = null;
     this.prefetchPromise = null;
     this.exhausted = false;
-    this.current.set(null);
-    this.position.set(0);
-    this.total.set(0);
-    this.hasNext.set(false);
-    this.hasPrev.set(false);
-    this.loading.set(false);
+    this._current.set(null);
+    this._position.set(0);
+    this._total.set(0);
+    this._hasNext.set(false);
+    this._hasPrev.set(false);
+    this._loading.set(false);
     sessionStorage.removeItem('redgaze_watch_queue');
   }
 
@@ -147,10 +153,10 @@ export class WatchQueueService {
   }
 
   private sync(): void {
-    this.current.set(this.buffer[this.cursor] ?? null);
-    this.position.set(this.cursor + 1);
-    this.total.set(this.buffer.length);
-    this.hasNext.set(this.cursor < this.buffer.length - 1 || (!this.exhausted && !!this.generator));
-    this.hasPrev.set(this.cursor > 0);
+    this._current.set(this.buffer[this.cursor] ?? null);
+    this._position.set(this.cursor + 1);
+    this._total.set(this.buffer.length);
+    this._hasNext.set(this.cursor < this.buffer.length - 1 || (!this.exhausted && !!this.generator));
+    this._hasPrev.set(this.cursor > 0);
   }
 }

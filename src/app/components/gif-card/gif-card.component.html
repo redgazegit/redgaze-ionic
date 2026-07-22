@@ -4,15 +4,21 @@
     @if (loading()) {
       <div class="skeleton"></div>
     }
-    <img
-      [src]="posterSrc()"
-      [alt]="gif().id"
-      class="gif-thumb"
-      [class.hidden]="loading()"
-      loading="lazy"
-      (load)="loading.set(false)"
-      (error)="loading.set(false)"
-    />
+    @if (imageError()) {
+      <div class="img-fallback">
+        <ion-icon name="image-outline"></ion-icon>
+      </div>
+    } @else {
+      <img
+        [src]="posterSrc()"
+        [alt]="gif().id"
+        class="gif-thumb"
+        [class.hidden]="loading()"
+        [loading]="loadingState()"
+        (load)="loading.set(false)"
+        (error)="loading.set(false); imageError.set(true)"
+      />
+    }
     <div class="card-overlay-top">
       @if (gif().verified) {
         <span class="verified-badge" title="Verified" data-testid="gif-verified">
@@ -37,7 +43,7 @@
       }
     </div>
     <button class="fav-btn" data-testid="gif-fav-btn" (click)="toggleFav($event)">
-      <ion-icon [name]="isFav ? 'heart' : 'heart-outline'"></ion-icon>
+      <ion-icon [name]="isFav() ? 'heart' : 'heart-outline'"></ion-icon>
     </button>
   </div>
   <div class="card-info">

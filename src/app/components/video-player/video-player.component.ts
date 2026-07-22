@@ -1,4 +1,4 @@
-import { Component, viewChild, ElementRef, OnDestroy, inject, signal, input, effect, ChangeDetectionStrategy } from '@angular/core';
+import { Component, viewChild, ElementRef, OnDestroy, inject, signal, input, computed, effect, ChangeDetectionStrategy } from '@angular/core';
 import { Router } from '@angular/router';
 import Plyr from 'plyr';
 import { Capacitor, SystemBars } from '@capacitor/core';
@@ -50,22 +50,7 @@ export class VideoPlayerComponent implements OnDestroy {
       const rawUrl = prefHd ? (gif.urls.hd || gif.urls.sd || '') : (gif.urls.sd || gif.urls.hd || '');
       const thumb = gif.urls.thumbnail || '';
 
-      if (Capacitor.isNativePlatform()) {
-        this.mediaProxy.proxyImage(thumb).then(url => this.posterSrc.set(url));
-        this.mediaProxy.proxyVideoProgressive(rawUrl).then(url => {
-          this.videoSrc.set(url);
-          this.blobUrls.push(url);
-        });
-      } else {
-        this.posterSrc.set(this.api.proxyUrl(thumb));
-        this.videoSrc.set(this.api.proxyUrl(rawUrl));
-        this.api.cachedMediaUrl(rawUrl).then(cachedUrl => {
-          if (cachedUrl !== this.videoSrc()) {
-            this.videoSrc.set(cachedUrl);
-            this.blobUrls.push(cachedUrl);
-          }
-        });
-      }
+      setTimeout(() => this.setMediaSources(rawUrl, thumb));
 
       if (isStories) {
         videoEl.play().catch(() => {});
@@ -125,6 +110,25 @@ export class VideoPlayerComponent implements OnDestroy {
     });
   }
 
+  private setMediaSources(rawUrl: string, thumb: string): void {
+    if (Capacitor.isNativePlatform()) {
+      this.mediaProxy.proxyImage(thumb).then(url => this.posterSrc.set(url));
+      this.mediaProxy.proxyVideoProgressive(rawUrl).then(url => {
+        this.videoSrc.set(url);
+        this.blobUrls.push(url);
+      });
+    } else {
+      this.posterSrc.set(this.api.proxyUrl(thumb));
+      this.videoSrc.set(this.api.proxyUrl(rawUrl));
+      this.api.cachedMediaUrl(rawUrl).then(cachedUrl => {
+        if (cachedUrl !== this.videoSrc()) {
+          this.videoSrc.set(cachedUrl);
+          this.blobUrls.push(cachedUrl);
+        }
+      });
+    }
+  }
+
   private isElementVisible(el: HTMLElement): boolean {
     const rect = el.getBoundingClientRect();
     const vh = window.innerHeight;
@@ -139,9 +143,7 @@ export class VideoPlayerComponent implements OnDestroy {
     this.blobUrls.forEach(url => this.mediaProxy.abortProgressiveStream(url));
   }
 
-  get isFav(): boolean {
-    return this.favService.isFavorite(this.gif()?.id || '');
-  }
+  readonly isFav = computed(() => this.favService.isFavorite(this.gif()?.id || ''));
 
   toggleFav(): void {
     const g = this.gif();

@@ -1,4 +1,4 @@
-import { Component, signal, inject, effect, ChangeDetectionStrategy } from '@angular/core';
+import { Component, signal, computed, inject, effect, ChangeDetectionStrategy } from '@angular/core';
 import { injectQuery, injectInfiniteQuery } from '@tanstack/angular-query-experimental';
 import { firstValueFrom } from 'rxjs';
 import { map } from 'rxjs/operators';
@@ -112,53 +112,52 @@ export class HomePage {
     effect(() => {
       localStorage.setItem('redgaze_home_view', this.viewMode());
     });
-    effect(() => {
-      if (this.trendingGifsQuery.isSuccess()) {
-        setTimeout(() => this.sidebarTagsReady.set(true), 2000);
-      }
-    });
-    effect(() => {
-      if (this.sidebarTagsReady()) {
-        setTimeout(() => this.sidebarCreatorsReady.set(true), 2000);
-      }
-    });
-    effect(() => {
-      if (this.sidebarCreatorsReady()) {
-        setTimeout(() => this.sidebarNichesReady.set(true), 2000);
-      }
+    effect((onCleanup) => {
+      if (!this.trendingGifsQuery.isSuccess()) return;
+      const t1 = setTimeout(() => this.sidebarTagsReady.set(true), 2000);
+      const t2 = setTimeout(() => this.sidebarCreatorsReady.set(true), 4000);
+      const t3 = setTimeout(() => this.sidebarNichesReady.set(true), 6000);
+      onCleanup(() => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); });
     });
   }
 
-  get trendingGifs(): Gif[] { return this.trendingGifsQuery.data()?.slice(0, 20) ?? []; }
-  get trendingTags(): Tag[] { return this.trendingTagsQuery.data()?.slice(0, 10) ?? []; }
-  get trendingCreators(): Creator[] { return this.trendingCreatorsQuery.data()?.slice(0, 10) ?? []; }
-  get trendingNiches(): Niche[] { return this.trendingNichesQuery.data()?.slice(0, 10) ?? []; }
+  readonly trendingGifs = computed(() => this.trendingGifsQuery.data()?.slice(0, 20) ?? []);
+  readonly trendingTags = computed(() => this.trendingTagsQuery.data()?.slice(0, 10) ?? []);
+  readonly trendingCreators = computed(() => this.trendingCreatorsQuery.data()?.slice(0, 10) ?? []);
+  readonly trendingNiches = computed(() => this.trendingNichesQuery.data()?.slice(0, 10) ?? []);
 
-  get gifs(): Gif[] {
+  readonly gifs = computed(() => {
     if (this.selectedSection() === 'trending') {
       return this.trendingGifsQuery.data() ?? [];
     }
     return this.feedQuery.data()?.pages.reduce((acc: Gif[], p) => [...acc, ...p.gifs], [] as Gif[]) ?? [];
-  }
+  });
 
-  get loading(): boolean {
+  readonly loading = computed(() => {
     if (this.selectedSection() === 'trending') {
       return this.trendingGifsQuery.isLoading();
     }
     return this.feedQuery.isLoading();
-  }
+  });
 
-  get hasMore(): boolean {
+  readonly feedError = computed(() => {
+    if (this.selectedSection() === 'trending') {
+      return this.trendingGifsQuery.isError();
+    }
+    return this.feedQuery.isError();
+  });
+
+  readonly hasMore = computed(() => {
     if (this.selectedSection() === 'trending') return false;
     return this.feedQuery.hasNextPage();
-  }
+  });
 
   switchSection(section: string): void {
     this.selectedSection.set(section);
   }
 
   async loadMore(event?: any): Promise<void> {
-    if (this.hasMore && !this.feedQuery.isFetching()) {
+    if (this.hasMore() && !this.feedQuery.isFetching()) {
       await this.feedQuery.fetchNextPage();
     }
     event?.target.complete();
@@ -181,10 +180,10 @@ export class HomePage {
   onCardClick(gifId: string, index: number): void {
     const section = this.selectedSection();
     if (this.ss.get().storiesNavigation && section !== 'trending') {
-      this.watchQueue.setQueue(this.gifs, index, homeFeedGenerator(this.api, section));
+      this.watchQueue.setQueue(this.gifs(), index, homeFeedGenerator(this.api, section));
       this.router.navigate(['/stories', gifId]);
     } else if (this.ss.get().storiesNavigation) {
-      this.watchQueue.setQueue(this.gifs, index);
+      this.watchQueue.setQueue(this.gifs(), index);
       this.router.navigate(['/stories', gifId]);
     } else {
       this.router.navigate(['/watch', gifId]);

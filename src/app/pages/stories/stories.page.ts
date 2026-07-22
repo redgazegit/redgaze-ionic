@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, inject, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, OnDestroy, inject, computed, ChangeDetectionStrategy } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { RedgifsApiService } from '../../services/redgifs-api.service';
 import { FavoritesService } from '../../services/favorites.service';
@@ -44,9 +44,10 @@ export class StoriesPage implements OnInit, OnDestroy {
     this.watchQueue.persistToSession();
   }
 
-  get isFav(): boolean {
-    return this.current() ? this.favService.isFavorite(this.current()!.id) : false;
-  }
+  readonly isFav = computed(() => {
+    const c = this.current();
+    return c ? this.favService.isFavorite(c.id) : false;
+  });
 
   toggleFav(): void {
     const gif = this.current();

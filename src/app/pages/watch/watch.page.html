@@ -3,17 +3,17 @@
     <ion-buttons slot="start">
       <ion-back-button defaultHref="/home"></ion-back-button>
     </ion-buttons>
-    @if (gif) {
-      <ion-title data-testid="watch-creator-name" (click)="goToCreator()" style="cursor:pointer">@{{ gif.userName }}</ion-title>
+    @if (gif(); as g) {
+      <ion-title data-testid="watch-creator-name" (click)="goToCreator()" style="cursor:pointer">@{{ g.userName }}</ion-title>
     }
     <ion-buttons slot="end">
-      @if (hasHd) {
+      @if (hasHd()) {
         <ion-button data-testid="watch-quality-toggle" (click)="toggleQuality()">
           <ion-label>{{ quality === 'hd' ? 'HD' : 'SD' }}</ion-label>
         </ion-button>
       }
       <ion-button data-testid="watch-fav-btn" (click)="toggleFav()">
-        <ion-icon [name]="isFav ? 'heart' : 'heart-outline'"></ion-icon>
+        <ion-icon [name]="isFav() ? 'heart' : 'heart-outline'"></ion-icon>
       </ion-button>
       <ion-button data-testid="watch-download-btn" (click)="download()">
         <ion-icon name="download-outline"></ion-icon>
@@ -23,13 +23,19 @@
 </ion-header>
 
 <ion-content class="watch-content">
-  @if (loading) {
+  @if (error()) {
+    <div class="error-state">
+      <ion-icon name="alert-circle-outline"></ion-icon>
+      <h2>Failed to load GIF</h2>
+      <ion-button fill="outline" (click)="gifQuery.refetch()">Retry</ion-button>
+    </div>
+  } @else if (loading()) {
     <div class="loading-spinner">
       <ion-spinner name="crescent"></ion-spinner>
     </div>
   }
 
-  @if (gif) {
+  @if (gif(); as g) {
     <div class="video-container" data-testid="video-container">
       <video
         #videoPlayer
@@ -39,22 +45,28 @@
         preload="auto"
       ></video>
     </div>
+  } @else if (!loading() && !error()) {
+    <div class="error-state">
+      <ion-icon name="file-tray-outline"></ion-icon>
+      <h2>GIF not found</h2>
+      <ion-button fill="outline" routerLink="/home">Back to Home</ion-button>
+    </div>
   }
 
-  @if (gif) {
+  @if (gif(); as g) {
     <div class="gif-details" data-testid="gif-details">
       <ion-list>
         <ion-item button (click)="goToCreator()" data-testid="watch-creator-detail">
           <ion-label>
-            <h2 data-testid="watch-creator-detail-name">{{ gif.userName || 'Unknown' }}</h2>
-            <p data-testid="gif-created-date">Created: {{ gif.createDate * 1000 | date:'medium' }}</p>
+            <h2 data-testid="watch-creator-detail-name">{{ g.userName || 'Unknown' }}</h2>
+            <p data-testid="gif-created-date">Created: {{ g.createDate * 1000 | date:'medium' }}</p>
           </ion-label>
         </ion-item>
-        @if (gif.tags.length) {
+        @if (g.tags.length) {
           <div class="detail-chips" data-testid="gif-tags-section">
             <span class="chip-label">Tags</span>
             <div class="chips-wrap">
-              @for (tag of gif.tags; track tag) {
+              @for (tag of g.tags; track tag) {
                 <ion-chip [routerLink]="['/search', tag]" color="primary" [attr.data-testid]="'gif-tag-' + tag">
                   {{ tag }}
                 </ion-chip>
@@ -64,28 +76,28 @@
         }
         <ion-item data-testid="gif-quality">
           <ion-label>Quality</ion-label>
-          @if (gif.urls.hd) {
+          @if (g.urls.hd) {
             <ion-badge color="success" slot="end">HD Available</ion-badge>
           }
-          @if (!gif.urls.hd) {
+          @if (!g.urls.hd) {
             <ion-badge color="medium" slot="end">SD</ion-badge>
           }
         </ion-item>
         <ion-item data-testid="gif-audio-status">
           <ion-label>Audio</ion-label>
-          <ion-icon [name]="gif.hasAudio ? 'checkmark-circle' : 'close-circle'" slot="end"></ion-icon>
+          <ion-icon [name]="g.hasAudio ? 'checkmark-circle' : 'close-circle'" slot="end"></ion-icon>
         </ion-item>
-        @if (gif.width && gif.height) {
+        @if (g.width && g.height) {
           <ion-item data-testid="gif-resolution">
             <ion-label>Resolution</ion-label>
-            <ion-note slot="end">{{ gif.width }}x{{ gif.height }}</ion-note>
+            <ion-note slot="end">{{ g.width }}x{{ g.height }}</ion-note>
           </ion-item>
         }
-        @if (gif.sexuality?.length) {
+        @if (g.sexuality?.length) {
           <div class="detail-chips" data-testid="gif-content-section">
             <span class="chip-label">Content</span>
             <div class="chips-wrap">
-              @for (s of gif.sexuality; track s) {
+              @for (s of g.sexuality; track s) {
                 <ion-chip color="warning" [attr.data-testid]="'gif-content-' + s">
                   {{ s }}
                 </ion-chip>
@@ -93,11 +105,11 @@
             </div>
           </div>
         }
-        @if (gif.niches?.length) {
+        @if (g.niches?.length) {
           <div class="detail-chips" data-testid="gif-niches-section">
             <span class="chip-label">Niches</span>
             <div class="chips-wrap">
-              @for (n of gif.niches; track n) {
+              @for (n of g.niches; track n) {
                 <ion-chip [routerLink]="['/niche', n]" color="secondary" [attr.data-testid]="'gif-niche-' + n">
                   {{ n }}
                 </ion-chip>
@@ -107,13 +119,13 @@
         }
         <ion-item data-testid="gif-status">
           <ion-label>Status</ion-label>
-          @if (gif.published) {
+          @if (g.published) {
             <ion-badge color="success" slot="end">Published</ion-badge>
           }
-          @if (!gif.published) {
+          @if (!g.published) {
             <ion-badge color="medium" slot="end">Unpublished</ion-badge>
           }
-          @if (gif.promoted) {
+          @if (g.promoted) {
             <ion-badge color="tertiary" slot="end">Promoted</ion-badge>
           }
         </ion-item>

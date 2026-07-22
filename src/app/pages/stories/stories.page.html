@@ -8,7 +8,7 @@
     }
     <ion-buttons slot="end">
       <ion-button (click)="toggleFav()" data-testid="stories-fav-btn">
-        <ion-icon [name]="isFav ? 'heart' : 'heart-outline'"></ion-icon>
+        <ion-icon [name]="isFav() ? 'heart' : 'heart-outline'"></ion-icon>
       </ion-button>
       <ion-button (click)="download()" data-testid="stories-download-btn">
         <ion-icon name="download-outline"></ion-icon>

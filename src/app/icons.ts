@@ -5,6 +5,7 @@ import {
   closeCircle,
   downloadOutline,
   eyeOutline,
+  fileTrayOutline,
   globeOutline,
   gridOutline,
   heart,
@@ -37,4 +38,5 @@ addIcons({
   searchOutline,
   settingsOutline,
   videocamOutline,
+  fileTrayOutline
 });

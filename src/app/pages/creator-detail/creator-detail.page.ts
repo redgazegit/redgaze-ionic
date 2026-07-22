@@ -1,5 +1,5 @@
-import { Component, OnInit, signal, effect, inject, ChangeDetectionStrategy } from '@angular/core';
-import { ActivatedRoute, Router } from '@angular/router';
+import { Component, signal, effect, inject, ChangeDetectionStrategy, computed, input } from '@angular/core';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { injectQuery, injectInfiniteQuery } from '@tanstack/angular-query-experimental';
 import { firstValueFrom } from 'rxjs';
 import { RedgifsApiService } from '../../services/redgifs-api.service';
@@ -23,18 +23,19 @@ import { SkeletonCardComponent } from '../../components/skeleton-card/skeleton-c
     VideoPlayerComponent,
     SkeletonCardComponent,
     DecimalPipe,
-    DatePipe
+    DatePipe,
+    RouterLink
 ],
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class CreatorDetailPage implements OnInit {
+export class CreatorDetailPage {
   private route = inject(ActivatedRoute);
   private router = inject(Router);
   api = inject(RedgifsApiService);
   ss = inject(SettingsService);
   private watchQueue = inject(WatchQueueService);
 
-  readonly username = signal('');
+  username = input.required<string>();
   readonly sortOrder = signal(localStorage.getItem('redgaze_creator_sort') || 'recent');
   viewMode: 'grid' | 'list' = (localStorage.getItem('redgaze_creator_view') as 'grid' | 'list') || 'grid';
 
@@ -47,7 +48,7 @@ export class CreatorDetailPage implements OnInit {
   ];
 
   readonly userQuery = injectQuery(() => ({
-    queryKey: ['user', this.username()],
+    queryKey: ['user', this.username()] as const,
     queryFn: () => firstValueFrom(this.api.getUser(this.username())),
     enabled: this.username() !== '',
     staleTime: 1000 * 60 * 5,
@@ -64,12 +65,20 @@ export class CreatorDetailPage implements OnInit {
     staleTime: 1000 * 60 * 2,
   }));
 
-  get user(): User | undefined { return this.userQuery.data(); }
-  get gifs(): Gif[] { return this.gifsQuery.data()?.pages.reduce((acc: Gif[], p) => [...acc, ...p.gifs], [] as Gif[]) ?? []; }
-  get loading(): boolean { return this.gifsQuery.isFetching() && this.gifsQuery.data()?.pages.length === 0; }
-  get hasMore(): boolean { return this.gifsQuery.hasNextPage(); }
-  get socialLinks(): { domain: string; url: string }[] {
-    const links = this.user?.links || [];
+  readonly user = computed(() => this.userQuery.data());
+  readonly userError = computed(() => this.userQuery.isError());
+  readonly userErrorMessage = computed(() => {
+    if (!this.userQuery.error()) return '';
+    const err = this.userQuery.error();
+    if (typeof err === 'object' && err !== null && 'status' in err && (err as any).status === 404) {
+      return `Creator "${this.username()}" not found`;
+    }
+    return 'Failed to load creator. Check connection and try again.';
+  });
+  readonly gifs = computed(() => this.gifsQuery.data()?.pages.reduce((acc: Gif[], p) => [...acc, ...p.gifs], [] as Gif[]) ?? []);
+  readonly loading = computed(() => this.gifsQuery.isFetching() && this.gifsQuery.data()?.pages.length === 0);
+  readonly socialLinks = computed(() => {
+    const links = this.user()?.links || [];
     const seen = new Set<string>();
     return links.filter(l => {
       const key = `${l.domain}|${l.url}`;
@@ -77,16 +86,12 @@ export class CreatorDetailPage implements OnInit {
       seen.add(key);
       return true;
     });
-  }
+  });
 
   constructor() {
     effect(() => {
       localStorage.setItem('redgaze_creator_sort', this.sortOrder());
     });
-  }
-
-  ngOnInit(): void {
-    this.username.set(this.route.snapshot.paramMap.get('username') || '');
   }
 
   setSort(order: string): void {
@@ -99,14 +104,14 @@ export class CreatorDetailPage implements OnInit {
   }
 
   loadMore(): void {
-    if (this.hasMore && !this.gifsQuery.isFetching()) {
+    if (this.gifsQuery.hasNextPage() && !this.gifsQuery.isFetching()) {
       this.gifsQuery.fetchNextPage();
     }
   }
 
   onCardClick(gifId: string, index: number): void {
     if (this.ss.get().storiesNavigation) {
-      this.watchQueue.setQueue(this.gifs, index, creatorFeedGenerator(this.api, this.username(), this.sortOrder()));
+      this.watchQueue.setQueue(this.gifs(), index, creatorFeedGenerator(this.api, this.username(), this.sortOrder()));
       this.router.navigate(['/stories', gifId]);
     } else {
       this.router.navigate(['/watch', gifId]);
