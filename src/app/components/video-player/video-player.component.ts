@@ -36,6 +36,9 @@ export class VideoPlayerComponent implements OnDestroy {
   private videoState = inject(VideoStateService);
   private blobUrls: string[] = [];
 
+  private sourceAttached = false;
+  readonly preloadStrategy = signal<'none' | 'metadata' | 'auto'>('none');
+
   readonly videoSrc = signal('');
   readonly posterSrc = signal('');
 
@@ -46,13 +49,9 @@ export class VideoPlayerComponent implements OnDestroy {
       if (!videoEl || !gif) return;
 
       const isStories = this.storiesMode();
-      const prefHd = this.settings.get().quality === 'hd';
-      const rawUrl = prefHd ? (gif.urls.hd || gif.urls.sd || '') : (gif.urls.sd || gif.urls.hd || '');
-      const thumb = gif.urls.thumbnail || '';
-
-      setTimeout(() => this.setMediaSources(rawUrl, thumb));
 
       if (isStories) {
+        this.ensureSource();
         videoEl.play().catch(() => {});
         return;
       }
@@ -82,23 +81,31 @@ export class VideoPlayerComponent implements OnDestroy {
         entries.forEach(entry => {
           if (!this.player || document.fullscreenElement) return;
           clearTimeout(this.playTimer);
-          if (!entry.isIntersecting) {
-            this.videoState.onPause(this.gif().id);
-            this.player.pause();
-          } else {
+          if (entry.intersectionRatio >= 0.3) {
+            this.ensureSource();
             this.playTimer = setTimeout(() => {
               if (this.player && this.videoState.requestPlay(this.gif().id)) {
                 this.player.play().catch(() => {});
               }
             }, 400);
+          } else if (entry.isIntersecting) {
+            this.ensureSource();
+            this.videoState.onPause(this.gif().id);
+            this.player.pause();
+          } else {
+            this.videoState.onPause(this.gif().id);
+            this.player.pause();
+            this.releaseSource();
           }
         });
-      }, { threshold: 0.3 });
+      }, { rootMargin: '400px 0px', threshold: [0, 0.3] });
       this.observer.observe(videoEl);
 
       this.player.on('ready', () => {
-        if (videoEl && this.isElementVisible(videoEl)) {
-          this.player?.play().catch(() => {});
+        if (this.sourceAttached && videoEl && this.isElementVisible(videoEl)) {
+          if (this.videoState.requestPlay(this.gif().id)) {
+            this.player?.play().catch(() => {});
+          }
         }
       });
     });
@@ -113,8 +120,12 @@ export class VideoPlayerComponent implements OnDestroy {
 
   private setMediaSources(rawUrl: string, thumb: string): void {
     if (Capacitor.isNativePlatform()) {
-      this.mediaProxy.proxyImage(thumb).then(url => this.posterSrc.set(url));
+      this.mediaProxy.proxyImage(thumb).then(url => {
+        if (!this.sourceAttached) return;
+        this.posterSrc.set(url);
+      });
       this.mediaProxy.proxyVideoProgressive(rawUrl).then(url => {
+        if (!this.sourceAttached) return;
         this.videoSrc.set(url);
         this.blobUrls.push(url);
       });
@@ -122,6 +133,29 @@ export class VideoPlayerComponent implements OnDestroy {
       this.posterSrc.set(this.api.proxyUrl(thumb));
       this.videoSrc.set(this.api.proxyUrl(rawUrl));
     }
+  }
+
+  private ensureSource(): void {
+    if (this.sourceAttached) return;
+    this.sourceAttached = true;
+    this.preloadStrategy.set('metadata');
+    const gif = this.gif();
+    if (!gif) { this.sourceAttached = false; return; }
+    const prefHd = this.settings.get().quality === 'hd';
+    const rawUrl = prefHd ? (gif.urls.hd || gif.urls.sd || '') : (gif.urls.sd || gif.urls.hd || '');
+    const thumb = gif.urls.thumbnail || '';
+    this.setMediaSources(rawUrl, thumb);
+  }
+
+  private releaseSource(): void {
+    if (!this.sourceAttached) return;
+    this.sourceAttached = false;
+    this.preloadStrategy.set('none');
+    this.videoSrc.set('');
+    this.posterSrc.set('');
+    const urls = this.blobUrls;
+    this.blobUrls = [];
+    urls.forEach(url => this.mediaProxy.abortProgressiveStream(url));
   }
 
   private isElementVisible(el: HTMLElement): boolean {
@@ -135,7 +169,7 @@ export class VideoPlayerComponent implements OnDestroy {
     this.observer?.disconnect();
     this.player?.destroy();
     this.videoState.onPause(this.gif()?.id || '');
-    this.blobUrls.forEach(url => this.mediaProxy.abortProgressiveStream(url));
+    this.releaseSource();
   }
 
   readonly isFav = computed(() => this.favService.isFavorite(this.gif()?.id || ''));
