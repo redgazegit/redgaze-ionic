@@ -179,6 +179,7 @@ export class WatchPage implements OnInit, OnDestroy {
         resetOnEnd: true,
         hideControls: true,
         clickToPlay: true,
+        iconUrl: '/assets/plyr/plyr.svg',
       });
       this.wireFsEvents();
       this.player.on('ready', () => {
@@ -204,6 +205,7 @@ export class WatchPage implements OnInit, OnDestroy {
       resetOnEnd: true,
       hideControls: true,
       clickToPlay: true,
+      iconUrl: '/assets/plyr/plyr.svg',
     });
     this.wireFsEvents();
     if (!video.hasAttribute('poster')) video.poster = this.posterSrc();

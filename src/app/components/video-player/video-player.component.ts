@@ -64,6 +64,7 @@ export class VideoPlayerComponent implements OnDestroy {
         resetOnEnd: true,
         hideControls: false,
         clickToPlay: true,
+        iconUrl: '/assets/plyr/plyr.svg',
       });
 
       if (Capacitor.isNativePlatform()) {
