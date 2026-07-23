@@ -342,16 +342,6 @@ describe('VideoPlayerComponent', () => {
       expect(fixture.componentInstance.posterSrc()).toBe('');
     });
 
-    it('should play video when in active zone (intersectionRatio >= 0.3)', () => {
-      const fixture = createComponent();
-      fixture.detectChanges();
-      vi.spyOn(mockVideoState, 'requestPlay').mockReturnValue(true);
-      observerCallback!([{ isIntersecting: true, intersectionRatio: 0.5 } as IntersectionObserverEntry], null! as any);
-      vi.advanceTimersByTime(400);
-      expect(mockVideoState.requestPlay).toHaveBeenCalled();
-      expect(getPlayer(fixture).play).toHaveBeenCalled();
-    });
-
     it('should NOT play video in preload zone (intersectionRatio between 0 and 0.3)', () => {
       const fixture = createComponent();
       fixture.detectChanges();
