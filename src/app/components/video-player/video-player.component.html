@@ -6,7 +6,7 @@
       attr.poster="{{posterSrc()}}"
       playsinline
       muted
-      preload="metadata"
+      [attr.preload]="preloadStrategy()"
       [class.plyr]="!storiesMode()"
     ></video>
   </div>
