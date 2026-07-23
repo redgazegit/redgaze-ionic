@@ -227,7 +227,7 @@ export class RedgifsApiService {
     if (!forceRefresh && cached) {
       try { return of(JSON.parse(cached)); } catch { /* fall through */ }
     }
-    return this.get<{ tags: Tag[] }>('/v2/search/trending').pipe(
+    return this.get<{ tags: Tag[] }>('/v2/tags/trending').pipe(
       map(r => r.tags),
       tap(tags => localStorage.setItem('redgifs_trending_tags', JSON.stringify(tags)))
     );

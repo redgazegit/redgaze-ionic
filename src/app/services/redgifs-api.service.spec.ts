@@ -3,6 +3,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting, HttpTestingController } from '@angular/common/http/testing';
 import { RedgifsApiService } from './redgifs-api.service';
 import { SettingsService } from './settings.service';
+import { API_CONFIG, DEV_API_CONFIG } from './api-config';
 import { testStorage } from '../../test-setup';
 
 describe('RedgifsApiService', () => {
@@ -18,6 +19,7 @@ describe('RedgifsApiService', () => {
         provideHttpClientTesting(),
         RedgifsApiService,
         SettingsService,
+        { provide: API_CONFIG, useValue: DEV_API_CONFIG },
       ],
     });
     const settings = TestBed.inject(SettingsService);
@@ -154,7 +156,7 @@ describe('RedgifsApiService', () => {
     initService();
     service.getTrendingTags().subscribe();
     flushAuth();
-    httpCtrl.expectOne('/api/v2/search/trending').flush({ tags: [{ text: 'funny', type: 'tag', gifs: [] }] });
+    httpCtrl.expectOne('/api/v2/tags/trending').flush({ tags: [{ text: 'funny', type: 'tag', gifs: [] }] });
   });
 
   it('should return cached trending tags from localStorage', () => {
