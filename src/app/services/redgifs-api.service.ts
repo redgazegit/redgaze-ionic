@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpHeaders, HttpErrorResponse } from '@angular/common/http';
 import { Observable, from, of, throwError, timer } from 'rxjs';
-import { switchMap, map, tap, catchError } from 'rxjs/operators';
+import { switchMap, map, tap, catchError, finalize } from 'rxjs/operators';
 import { SettingsService } from './settings.service';
 import { API_CONFIG } from './api-config';
 import {
@@ -24,6 +24,7 @@ export class RedgifsApiService {
   private tokenExpiry = 0;
   private lastRequest = 0;
   private backoffUntil = 0;
+  private authInFlight$: Observable<boolean> | null = null;
 
   constructor() {
     this.loadToken();
@@ -52,7 +53,8 @@ export class RedgifsApiService {
 
   private ensureAuth(): Observable<boolean> {
     if (this.token && Date.now() < this.tokenExpiry) return of(true);
-    return this.http.get<TempToken>(`${this.config.baseUrl}/v2/auth/temporary`, {
+    if (this.authInFlight$) return this.authInFlight$;
+    this.authInFlight$ = this.http.get<TempToken>(`${this.config.baseUrl}/v2/auth/temporary`, {
       headers: new HttpHeaders({ 'Accept': 'application/json' })
     }).pipe(
       tap(t => {
@@ -65,8 +67,10 @@ export class RedgifsApiService {
       catchError(err => {
         console.error('Auth error details:', err.status, err.statusText, err.url ?? err.message);
         return throwError(() => new Error('Auth failed'));
-      })
+      }),
+      finalize(() => { this.authInFlight$ = null; }),
     );
+    return this.authInFlight$;
   }
 
   private waitForSlot(): Observable<void> {

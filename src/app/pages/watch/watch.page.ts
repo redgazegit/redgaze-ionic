@@ -128,11 +128,6 @@ export class WatchPage implements OnInit, OnDestroy {
       video.src = await this.mediaProxy.proxyVideoProgressive(url);
     } else {
       video.src = this.api.proxyUrl(url);
-      this.api.cachedMediaUrl(url).then(cachedUrl => {
-        if (cachedUrl !== video.src) {
-          video.src = cachedUrl;
-        }
-      });
     }
     const play = () => video.play().catch(() => {});
     video.readyState >= 2 ? play() : video.addEventListener('canplay', play, { once: true });
@@ -184,6 +179,7 @@ export class WatchPage implements OnInit, OnDestroy {
         resetOnEnd: true,
         hideControls: true,
         clickToPlay: true,
+        iconUrl: '/assets/plyr/plyr.svg',
       });
       this.wireFsEvents();
       this.player.on('ready', () => {
@@ -200,11 +196,6 @@ export class WatchPage implements OnInit, OnDestroy {
       video.src = await this.mediaProxy.proxyVideoProgressive(url);
     } else {
       video.src = this.api.proxyUrl(url);
-      this.api.cachedMediaUrl(url).then(cachedUrl => {
-        if (cachedUrl !== video.src) {
-          video.src = cachedUrl;
-        }
-      });
     }
     this.player = new Plyr(video, {
       controls: [
@@ -214,6 +205,7 @@ export class WatchPage implements OnInit, OnDestroy {
       resetOnEnd: true,
       hideControls: true,
       clickToPlay: true,
+      iconUrl: '/assets/plyr/plyr.svg',
     });
     this.wireFsEvents();
     if (!video.hasAttribute('poster')) video.poster = this.posterSrc();

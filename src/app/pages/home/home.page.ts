@@ -52,29 +52,25 @@ export class HomePage {
     staleTime: 1000 * 60 * 2,
   }));
 
-  readonly sidebarTagsReady = signal(false);
-  readonly sidebarCreatorsReady = signal(false);
-  readonly sidebarNichesReady = signal(false);
-
   readonly trendingTagsQuery = injectQuery(() => ({
     queryKey: ['home-trending-tags'],
     queryFn: () => firstValueFrom(this.api.getTrendingTags()),
     staleTime: 1000 * 60 * 30,
-    enabled: this.sidebarTagsReady(),
+    enabled: this.trendingGifsQuery.isSuccess(),
   }));
 
   readonly trendingCreatorsQuery = injectQuery(() => ({
     queryKey: ['home-trending-creators'],
     queryFn: () => firstValueFrom(this.api.getTrendingCreators()),
     staleTime: 1000 * 60 * 30,
-    enabled: this.sidebarCreatorsReady(),
+    enabled: this.trendingGifsQuery.isSuccess(),
   }));
 
   readonly trendingNichesQuery = injectQuery(() => ({
     queryKey: ['home-trending-niches'],
     queryFn: () => firstValueFrom(this.api.getNicheTrending()),
     staleTime: 1000 * 60 * 30,
-    enabled: this.sidebarNichesReady(),
+    enabled: this.trendingGifsQuery.isSuccess(),
   }));
 
   private feedFn(section: string, page: number): Promise<SearchResult> {
@@ -111,13 +107,6 @@ export class HomePage {
     });
     effect(() => {
       localStorage.setItem('redgaze_home_view', this.viewMode());
-    });
-    effect((onCleanup) => {
-      if (!this.trendingGifsQuery.isSuccess()) return;
-      const t1 = setTimeout(() => this.sidebarTagsReady.set(true), 2000);
-      const t2 = setTimeout(() => this.sidebarCreatorsReady.set(true), 4000);
-      const t3 = setTimeout(() => this.sidebarNichesReady.set(true), 6000);
-      onCleanup(() => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); });
     });
   }
 
