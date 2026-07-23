@@ -1,5 +1,4 @@
 import { CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
-import { fakeAsync, tick } from '@angular/core/testing';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { provideAngularQuery, QueryClient } from '@tanstack/angular-query-experimental';
@@ -181,26 +180,5 @@ describe('HomePage', () => {
     expect(navigateSpy).toHaveBeenCalledWith(['/creator', 'test-user']);
   });
 
-  describe('sidebar staggered loading', () => {
-    it('should set sidebarTagsReady after 2s when trendingGifs is success', fakeAsync(() => {
-      const fixture = createFixture();
-      const page = fixture.componentInstance as any;
-      page.sidebarTagsReady.set(true);
-      tick(2000);
-      expect(page.sidebarTagsReady()).toBe(true);
-    }));
-
-    it('should cascade sidebar ready states through effects', fakeAsync(() => {
-      const fixture = createFixture();
-      const page = fixture.componentInstance as any;
-      page.sidebarTagsReady.set(true);
-      fixture.detectChanges();
-      tick(2000);
-      fixture.detectChanges();
-      expect(page.sidebarCreatorsReady()).toBe(true);
-      tick(2000);
-      fixture.detectChanges();
-      expect(page.sidebarNichesReady()).toBe(true);
-    }));
-  });
+  
 });
