@@ -120,12 +120,6 @@ export class VideoPlayerComponent implements OnDestroy {
     } else {
       this.posterSrc.set(this.api.proxyUrl(thumb));
       this.videoSrc.set(this.api.proxyUrl(rawUrl));
-      this.api.cachedMediaUrl(rawUrl).then(cachedUrl => {
-        if (cachedUrl !== this.videoSrc()) {
-          this.videoSrc.set(cachedUrl);
-          this.blobUrls.push(cachedUrl);
-        }
-      });
     }
   }
 

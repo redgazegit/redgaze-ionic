@@ -128,11 +128,6 @@ export class WatchPage implements OnInit, OnDestroy {
       video.src = await this.mediaProxy.proxyVideoProgressive(url);
     } else {
       video.src = this.api.proxyUrl(url);
-      this.api.cachedMediaUrl(url).then(cachedUrl => {
-        if (cachedUrl !== video.src) {
-          video.src = cachedUrl;
-        }
-      });
     }
     const play = () => video.play().catch(() => {});
     video.readyState >= 2 ? play() : video.addEventListener('canplay', play, { once: true });
@@ -200,11 +195,6 @@ export class WatchPage implements OnInit, OnDestroy {
       video.src = await this.mediaProxy.proxyVideoProgressive(url);
     } else {
       video.src = this.api.proxyUrl(url);
-      this.api.cachedMediaUrl(url).then(cachedUrl => {
-        if (cachedUrl !== video.src) {
-          video.src = cachedUrl;
-        }
-      });
     }
     this.player = new Plyr(video, {
       controls: [
