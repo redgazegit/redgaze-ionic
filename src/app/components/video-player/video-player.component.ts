@@ -37,6 +37,7 @@ export class VideoPlayerComponent implements OnDestroy {
   private blobUrls: string[] = [];
 
   private sourceAttached = false;
+  private sourceGeneration = 0;
   readonly preloadStrategy = signal<'none' | 'metadata' | 'auto'>('none');
 
   readonly videoSrc = signal('');
@@ -118,16 +119,16 @@ export class VideoPlayerComponent implements OnDestroy {
     });
   }
 
-  private setMediaSources(rawUrl: string, thumb: string): void {
+  private setMediaSources(rawUrl: string, thumb: string, gen: number): void {
     if (Capacitor.isNativePlatform()) {
       this.mediaProxy.proxyImage(thumb).then(url => {
-        if (!this.sourceAttached) return;
-        this.posterSrc.set(url);
+        if (this.sourceAttached && gen === this.sourceGeneration) this.posterSrc.set(url);
       });
       this.mediaProxy.proxyVideoProgressive(rawUrl).then(url => {
-        if (!this.sourceAttached) return;
-        this.videoSrc.set(url);
-        this.blobUrls.push(url);
+        if (this.sourceAttached && gen === this.sourceGeneration) {
+          this.videoSrc.set(url);
+          this.blobUrls.push(url);
+        }
       });
     } else {
       this.posterSrc.set(this.api.proxyUrl(thumb));
@@ -144,12 +145,13 @@ export class VideoPlayerComponent implements OnDestroy {
     const prefHd = this.settings.get().quality === 'hd';
     const rawUrl = prefHd ? (gif.urls.hd || gif.urls.sd || '') : (gif.urls.sd || gif.urls.hd || '');
     const thumb = gif.urls.thumbnail || '';
-    this.setMediaSources(rawUrl, thumb);
+    this.setMediaSources(rawUrl, thumb, this.sourceGeneration);
   }
 
   private releaseSource(): void {
     if (!this.sourceAttached) return;
     this.sourceAttached = false;
+    this.sourceGeneration++;
     this.preloadStrategy.set('none');
     this.videoSrc.set('');
     this.posterSrc.set('');
