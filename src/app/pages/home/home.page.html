@@ -42,21 +42,23 @@
           <p>No GIFs in this section</p>
         </div>
       } @else {
-        <div [class.hidden]="viewMode() !== 'grid'" class="gif-grid" role="feed">
-          @for (gif of gifs(); track gif.id; let i = $index) {
-            <app-gif-card [gif]="gif" (cardClick)="onCardClick($event, i)" (creatorClick)="onCreatorClick($event)"></app-gif-card>
-          }
-        </div>
-
-        <div [class.hidden]="viewMode() !== 'list'" class="gif-list" role="feed">
-          @for (gif of gifs(); track gif.id) {
-            @if (ss.get().gridAutoplay) {
-              <app-video-player [gif]="gif"></app-video-player>
-            } @else {
-              <app-gif-card [gif]="gif" (cardClick)="onCardClick($event, $index)" (creatorClick)="onCreatorClick($event)"></app-gif-card>
+        @if (viewMode() === 'grid') {
+          <div class="gif-grid" role="feed">
+            @for (gif of gifs(); track gif.id; let i = $index) {
+              <app-gif-card [gif]="gif" (cardClick)="onCardClick($event, i)" (creatorClick)="onCreatorClick($event)"></app-gif-card>
             }
-          }
-        </div>
+          </div>
+        } @else {
+          <div class="gif-list" role="feed">
+            @for (gif of gifs(); track gif.id) {
+              @if (ss.get().gridAutoplay) {
+                <app-video-player [gif]="gif"></app-video-player>
+              } @else {
+                <app-gif-card [gif]="gif" (cardClick)="onCardClick($event, $index)" (creatorClick)="onCreatorClick($event)"></app-gif-card>
+              }
+            }
+          </div>
+        }
       }
 
       <ion-infinite-scroll #infiniteScroll (ionInfinite)="loadMore($event)">
