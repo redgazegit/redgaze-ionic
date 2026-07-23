@@ -42,5 +42,18 @@ export async function onRequest(context) {
     }
   }
 
-  return next()
+  const response = await next()
+
+  if (response.status === 404) {
+    const url = new URL(request.url)
+    if (!url.pathname.startsWith('/cdn/') && !url.pathname.startsWith('/api/') && !url.pathname.startsWith('/userpic/')) {
+      const index = await context.env.ASSETS.fetch(new URL('/index.html', request.url))
+      return new Response(index.body, {
+        status: 200,
+        headers: { 'Content-Type': 'text/html' },
+      })
+    }
+  }
+
+  return response
 }
