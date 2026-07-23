@@ -70,7 +70,7 @@
         <ion-card-header><ion-card-title>Trending Tags</ion-card-title></ion-card-header>
         <ion-card-content>
           @if (trendingTags().length) {
-            @for (tag of trendingTags(); track tag) {
+            @for (tag of trendingTags(); track tag.name) {
               <ion-chip [routerLink]="['/search', tag.name]" color="primary" [attr.data-testid]="'trending-tag-' + tag.name">
                 {{ tag.name }}
               </ion-chip>
@@ -89,7 +89,7 @@
         <ion-card-header><ion-card-title>Popular Creators</ion-card-title></ion-card-header>
         <ion-card-content>
           @if (trendingCreators().length) {
-            @for (c of trendingCreators(); track c) {
+            @for (c of trendingCreators(); track c.username) {
               <ion-item [routerLink]="['/creator', c.username]" detail lines="full" [attr.data-testid]="'trending-creator-' + c.username">
                 <ion-avatar slot="start">
                   <img [src]="api.proxyUserpicUrl(c.profileImageUrl)" [alt]="c.username">
@@ -122,7 +122,7 @@
         <ion-card-header><ion-card-title>Niches</ion-card-title></ion-card-header>
         <ion-card-content>
           @if (trendingNiches().length) {
-            @for (n of trendingNiches(); track n) {
+            @for (n of trendingNiches(); track n.id) {
               <ion-chip [routerLink]="['/niche', n.id]" color="secondary" [attr.data-testid]="'trending-niche-' + n.id">
                 {{ n.name }}
               </ion-chip>
