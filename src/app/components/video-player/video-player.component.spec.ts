@@ -90,6 +90,10 @@ describe('VideoPlayerComponent', () => {
     const fixture = createComponent(gif);
     fixture.detectChanges();
 
+    expect(fixture.componentInstance.posterSrc()).toBe('');
+    expect(fixture.componentInstance.videoSrc()).toBe('');
+
+    observerCallback!([{ isIntersecting: true, intersectionRatio: 0 } as IntersectionObserverEntry], null! as any);
     expect(fixture.componentInstance.posterSrc()).toBe('/cdn/thumb.jpg');
     expect(fixture.componentInstance.videoSrc()).toBe('/cdn/test-hd.mp4');
   });
@@ -105,6 +109,8 @@ describe('VideoPlayerComponent', () => {
     mockSettings.setSettings({ playbackMode: 'mp4', quality: 'sd', rateLimitEnabled: true, storiesNavigation: true, gridAutoplay: true });
     const fixture = createComponent(gif);
     fixture.detectChanges();
+    expect(fixture.componentInstance.videoSrc()).toBe('');
+    observerCallback!([{ isIntersecting: true, intersectionRatio: 0 } as IntersectionObserverEntry], null! as any);
     expect(fixture.componentInstance.videoSrc()).toBe('/cdn/sd.mp4');
   });
 
@@ -112,7 +118,7 @@ describe('VideoPlayerComponent', () => {
     const gif = fakeGif({ id: 'video-fav-check' });
     vi.spyOn(mockFav, 'isFavorite').mockReturnValue(true);
     const fixture = createComponent(gif);
-    expect(fixture.componentInstance.isFav).toBe(true);
+    expect(fixture.componentInstance.isFav()).toBe(true);
   });
 
   it('should toggle favorite', () => {
@@ -149,7 +155,7 @@ describe('VideoPlayerComponent', () => {
       origCreateElement = document.createElement;
       document.createElement = vi.fn().mockReturnValue(anchor as any);
       fixture.componentInstance.download();
-      expect(anchor.href).toBe('/cdn/dl.mp4');
+      expect(anchor.href).toBe('https://media.redgifs.com/dl.mp4');
       expect(anchor.download).toBe('dl-test.mp4');
       expect(anchor.click).toHaveBeenCalledOnce();
     });
@@ -166,12 +172,13 @@ describe('VideoPlayerComponent', () => {
       const fixture = createComponent();
       fixture.detectChanges();
       const page = fixture.componentInstance as any;
+      page.sourceAttached = true;
       page.blobUrls = ['blob:http://test1', 'blob:http://test2'];
       const timer = setTimeout(() => {}, 10000);
       page.playTimer = timer;
 
       vi.spyOn(globalThis, 'clearTimeout');
-      vi.spyOn(URL, 'revokeObjectURL');
+      const abortSpy = vi.spyOn(page.mediaProxy, 'abortProgressiveStream');
       vi.spyOn(mockVideoState, 'onPause');
 
       fixture.destroy();
@@ -179,7 +186,9 @@ describe('VideoPlayerComponent', () => {
       expect(globalThis.clearTimeout).toHaveBeenCalledWith(timer);
       expect(page.player.destroy).toHaveBeenCalled();
       expect(mockVideoState.onPause).toHaveBeenCalled();
-      expect(URL.revokeObjectURL).toHaveBeenCalledTimes(2);
+      expect(abortSpy).toHaveBeenCalledTimes(2);
+      expect(abortSpy).toHaveBeenCalledWith('blob:http://test1');
+      expect(abortSpy).toHaveBeenCalledWith('blob:http://test2');
     });
   });
 
@@ -219,9 +228,11 @@ describe('VideoPlayerComponent', () => {
       fixture.detectChanges();
       const cb = getReadyCallback(fixture);
       expect(cb).toBeTruthy();
-      vi.spyOn(fixture.componentInstance as any, 'isElementVisible').mockReturnValue(true);
+      const page = fixture.componentInstance as any;
+      page.sourceAttached = true;
+      vi.spyOn(page, 'isElementVisible').mockReturnValue(true);
       cb();
-      expect(fixture.componentInstance['player'].play).toHaveBeenCalled();
+      expect(page.player.play).toHaveBeenCalled();
     });
 
     it('should not auto-play on ready when element is not visible', () => {
