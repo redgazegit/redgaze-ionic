@@ -38,6 +38,7 @@ export class VideoPlayerComponent implements OnDestroy {
 
   private sourceAttached = false;
   private sourceGeneration = 0;
+  readonly sourceReady = signal(false);
   readonly preloadStrategy = signal<'none' | 'metadata' | 'auto'>('none');
 
   readonly videoSrc = signal('');
@@ -59,27 +60,14 @@ export class VideoPlayerComponent implements OnDestroy {
 
       if (this.player) return;
 
-      this.player = new Plyr(videoEl, {
-        controls: ['play', 'progress', 'current-time', 'mute', 'fullscreen'],
-        resetOnEnd: true,
-        hideControls: false,
-        clickToPlay: true,
-        iconUrl: '/assets/plyr/plyr.svg',
-      });
-
-      if (Capacitor.isNativePlatform()) {
-        this.player.on('enterfullscreen', () => {
-          console.log('[VP] Plyr enterfullscreen');
-          SystemBars.hide().catch(() => {});
-        });
-        this.player.on('exitfullscreen', () => {
-          console.log('[VP] Plyr exitfullscreen');
-          SystemBars.show().catch(() => {});
-        });
-      }
-
       this.observer = new IntersectionObserver(entries => {
         entries.forEach(entry => {
+          if (!this.player && entry.isIntersecting) {
+            this.ensureSource();
+            if (this.videoSrc()) videoEl.src = this.videoSrc();
+            this.createPlyr(videoEl);
+          }
+
           if (!this.player || document.fullscreenElement) return;
           clearTimeout(this.playTimer);
           if (entry.intersectionRatio >= 0.3) {
@@ -101,14 +89,6 @@ export class VideoPlayerComponent implements OnDestroy {
         });
       }, { rootMargin: '400px 0px', threshold: [0, 0.3] });
       this.observer.observe(videoEl);
-
-      this.player.on('ready', () => {
-        if (this.sourceAttached && videoEl && this.isElementVisible(videoEl)) {
-          if (this.videoState.requestPlay(this.gif().id)) {
-            this.player?.play().catch(() => {});
-          }
-        }
-      });
     });
 
     effect(() => {
@@ -121,24 +101,28 @@ export class VideoPlayerComponent implements OnDestroy {
 
   private setMediaSources(rawUrl: string, thumb: string, gen: number): void {
     if (Capacitor.isNativePlatform()) {
-      this.mediaProxy.proxyImage(thumb).then(url => {
-        if (this.sourceAttached && gen === this.sourceGeneration) this.posterSrc.set(url);
-      });
-      this.mediaProxy.proxyVideoProgressive(rawUrl).then(url => {
+      Promise.all([
+        this.mediaProxy.proxyImage(thumb),
+        this.mediaProxy.proxyVideoProgressive(rawUrl),
+      ]).then(([posterUrl, videoUrl]) => {
         if (this.sourceAttached && gen === this.sourceGeneration) {
-          this.videoSrc.set(url);
-          this.blobUrls.push(url);
+          this.posterSrc.set(posterUrl);
+          this.videoSrc.set(videoUrl);
+          this.blobUrls.push(videoUrl);
+          this.sourceReady.set(true);
         }
       });
     } else {
       this.posterSrc.set(this.api.proxyUrl(thumb));
       this.videoSrc.set(this.api.proxyUrl(rawUrl));
+      this.sourceReady.set(true);
     }
   }
 
   private ensureSource(): void {
     if (this.sourceAttached) return;
     this.sourceAttached = true;
+    this.sourceReady.set(false);
     this.preloadStrategy.set('metadata');
     const gif = this.gif();
     if (!gif) { this.sourceAttached = false; return; }
@@ -151,6 +135,7 @@ export class VideoPlayerComponent implements OnDestroy {
   private releaseSource(): void {
     if (!this.sourceAttached) return;
     this.sourceAttached = false;
+    this.sourceReady.set(false);
     this.sourceGeneration++;
     this.preloadStrategy.set('none');
     this.videoSrc.set('');
@@ -158,6 +143,33 @@ export class VideoPlayerComponent implements OnDestroy {
     const urls = this.blobUrls;
     this.blobUrls = [];
     urls.forEach(url => this.mediaProxy.abortProgressiveStream(url));
+  }
+
+  private createPlyr(videoEl: HTMLVideoElement): void {
+    this.player = new Plyr(videoEl, {
+      controls: ['play', 'progress', 'current-time', 'mute', 'fullscreen'],
+      resetOnEnd: true,
+      hideControls: false,
+      clickToPlay: true,
+      iconUrl: '/assets/plyr/plyr.svg',
+    });
+
+    if (Capacitor.isNativePlatform()) {
+      this.player.on('enterfullscreen', () => {
+        SystemBars.hide().catch(() => {});
+      });
+      this.player.on('exitfullscreen', () => {
+        SystemBars.show().catch(() => {});
+      });
+    }
+
+    this.player.on('ready', () => {
+      if (this.sourceAttached && videoEl && this.isElementVisible(videoEl)) {
+        if (this.videoState.requestPlay(this.gif().id)) {
+          this.player?.play().catch(() => {});
+        }
+      }
+    });
   }
 
   private isElementVisible(el: HTMLElement): boolean {

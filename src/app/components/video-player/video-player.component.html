@@ -9,6 +9,16 @@
       [attr.preload]="preloadStrategy()"
       [class.plyr]="!storiesMode()"
     ></video>
+    @if (!storiesMode() && !sourceReady()) {
+      <div class="video-placeholder">
+        @if (posterSrc()) {
+          <img [src]="posterSrc()" class="placeholder-img" alt="" />
+        } @else {
+          <div class="skeleton"></div>
+        }
+        <div class="vp-pulse"></div>
+      </div>
+    }
   </div>
   @if (!storiesMode()) {
     <div class="video-info">
