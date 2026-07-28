@@ -24,7 +24,6 @@ import { JsonPipe } from '@angular/common';
     GifCardComponent,
     SkeletonCardComponent,
     RouterLink,
-    JsonPipe
 ],
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
@@ -61,7 +60,7 @@ export class SearchPage implements OnInit, OnDestroy {
     staleTime: 1000 * 60 * 2,
   }));
 
-  
+
   readonly results = computed(() => this.searchResultQuery.data()?.gifs ?? []);
   readonly relatedUsers = computed(() => this.searchResultQuery.data()?.users ?? []);
   readonly relatedTags = computed(() => this.searchResultQuery.data()?.tags ?? []);

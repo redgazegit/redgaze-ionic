@@ -27,6 +27,7 @@ export class AppComponent implements OnInit, OnDestroy {
   private backHandler?: Promise<PluginListenerHandle>;
 
   ngOnInit() {
+    this.theme.setMode('system')
     this.api.getAllTags().subscribe();
 
     this.backHandler = App.addListener('backButton', () => {
