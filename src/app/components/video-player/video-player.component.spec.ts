@@ -173,6 +173,7 @@ describe('VideoPlayerComponent', () => {
       fixture.detectChanges();
       const page = fixture.componentInstance as any;
       page.sourceAttached = true;
+      page.player = { destroy: vi.fn(), on: vi.fn(), play: vi.fn().mockResolvedValue(undefined), pause: vi.fn() };
       page.blobUrls = ['blob:http://test1', 'blob:http://test2'];
       const timer = setTimeout(() => {}, 10000);
       page.playTimer = timer;
@@ -226,6 +227,8 @@ describe('VideoPlayerComponent', () => {
     it('should auto-play on ready when element is visible', () => {
       const fixture = createComponent();
       fixture.detectChanges();
+      observerCallback!([{ isIntersecting: true, intersectionRatio: 0.5 } as IntersectionObserverEntry], null! as any);
+      fixture.detectChanges();
       const cb = getReadyCallback(fixture);
       expect(cb).toBeTruthy();
       const page = fixture.componentInstance as any;
@@ -237,6 +240,8 @@ describe('VideoPlayerComponent', () => {
 
     it('should not auto-play on ready when element is not visible', () => {
       const fixture = createComponent();
+      fixture.detectChanges();
+      observerCallback!([{ isIntersecting: true, intersectionRatio: 0.5 } as IntersectionObserverEntry], null! as any);
       fixture.detectChanges();
       const cb = getReadyCallback(fixture);
       vi.spyOn(fixture.componentInstance as any, 'isElementVisible').mockReturnValue(false);
@@ -287,6 +292,7 @@ describe('VideoPlayerComponent', () => {
     it('should pause when not intersecting', () => {
       const fixture = createComponent();
       fixture.detectChanges();
+      observerCallback!([{ isIntersecting: true, intersectionRatio: 0.5 } as IntersectionObserverEntry], null! as any);
       vi.spyOn(mockVideoState, 'onPause');
       expect(observerCallback).toBeTruthy();
       observerCallback!([{ isIntersecting: false, intersectionRatio: 0 } as IntersectionObserverEntry], null! as any);
