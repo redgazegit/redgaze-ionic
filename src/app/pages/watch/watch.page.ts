@@ -1,51 +1,36 @@
-import { Component, OnInit, viewChild, ElementRef, OnDestroy, signal, computed, effect, inject, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, inject, viewChild, computed, signal, ChangeDetectionStrategy } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { injectQuery, injectMutation } from '@tanstack/angular-query-experimental';
 import { firstValueFrom } from 'rxjs';
-import Plyr from 'plyr';
-import Hls from 'hls.js';
-import { Capacitor } from '@capacitor/core';
-import { SystemBars } from '@capacitor/core';
-import { CacheFragmentLoader } from '../../services/hls-cache-loader';
 import { RedgifsApiService } from '../../services/redgifs-api.service';
-import { MediaProxyService } from '../../services/media-proxy.service';
 import { FavoritesService } from '../../services/favorites.service';
-import { SettingsService, QualityPref } from '../../services/settings.service';
-import { VideoStateService } from '../../services/video-state.service';
-import { Gif } from '../../models/gif.model';
-import { IonBackButton, IonBadge, IonButton, IonButtons, IonChip, IonContent, IonHeader, IonIcon, IonItem, IonLabel, IonList, IonNote, IonSpinner, IonTitle, IonToolbar } from '@ionic/angular/standalone';
+import { SettingsService } from '../../services/settings.service';
+import { VideoPlayerComponent } from '../../components/video-player/video-player.component';
 import { DatePipe } from '@angular/common';
+import { IonBackButton, IonBadge, IonButton, IonButtons, IonChip, IonContent, IonHeader, IonIcon, IonItem, IonLabel, IonList, IonNote, IonSpinner, IonTitle, IonToolbar } from '@ionic/angular/standalone';
 
 @Component({
     selector: 'app-watch',
     templateUrl: './watch.page.html',
     styleUrls: ['./watch.page.scss'],
     imports: [
+    VideoPlayerComponent,
     IonBackButton, IonBadge, IonButton, IonButtons, IonChip, IonContent, IonHeader, IonIcon, IonItem, IonLabel, IonList, IonNote, IonSpinner, IonTitle, IonToolbar,
     DatePipe,
     RouterLink
 ],
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class WatchPage implements OnInit, OnDestroy {
+export class WatchPage implements OnInit {
   private route = inject(ActivatedRoute);
   private router = inject(Router);
-  api = inject(RedgifsApiService);
-  private mediaProxy = inject(MediaProxyService);
+  private api = inject(RedgifsApiService);
+  protected settings = inject(SettingsService);
   favService = inject(FavoritesService);
-  private settings = inject(SettingsService);
-  private videoState = inject(VideoStateService);
 
-
-  private readonly videoRef = viewChild<ElementRef<HTMLVideoElement>>('videoPlayer');
+  readonly playerRef = viewChild(VideoPlayerComponent);
 
   private readonly id = signal('');
-  quality: QualityPref = 'hd';
-  usingHls = false;
-  private player?: Plyr;
-  private hls?: Hls;
-  private playStart = 0;
-  private blobUrls: string[] = [];
 
   readonly gifQuery = injectQuery(() => ({
     queryKey: ['gif', this.id()],
@@ -67,32 +52,6 @@ export class WatchPage implements OnInit, OnDestroy {
   readonly loading = computed(() => this.gifQuery.isLoading());
   readonly error = computed(() => this.gifQuery.isError());
 
-  constructor() {
-    const settings = this.settings;
-
-    this.quality = settings.get().quality;
-    effect(() => {
-      const g = this.gif();
-      if (!g) return;
-      const thumb = g.urls.thumbnail || '';
-      setTimeout(() => this.setPoster(thumb));
-    });
-    effect(() => {
-      const g = this.gif();
-      if (g && this.videoRef()?.nativeElement && !this.player) {
-        this.initPlayer();
-      }
-    });
-  }
-
-  private setPoster(thumb: string): void {
-    if (Capacitor.isNativePlatform()) {
-      this.mediaProxy.proxyImage(thumb).then(url => this.posterSrc.set(url));
-    } else {
-      this.posterSrc.set(this.api.proxyUrl(thumb));
-    }
-  }
-
   ngOnInit(): void {
     this.id.set(this.route.snapshot.paramMap.get('id') || '');
     if (this.id()) {
@@ -100,173 +59,14 @@ export class WatchPage implements OnInit, OnDestroy {
     }
   }
 
-  readonly posterSrc = signal('');
-
-  readonly hasHd = computed(() => !!this.gif()?.urls.hd);
+  onDuration(event: {gifId: string; duration: number}): void {
+    this.trackDurationMutation.mutate(event);
+  }
 
   goToCreator(): void {
-    if (this.gif()?.userName) {
-      this.router.navigate(['/creator', this.gif()!.userName]);
-    }
-  }
-
-  toggleQuality(): void {
-    this.quality = this.quality === 'hd' ? 'sd' : 'hd';
-    if (this.usingHls) {
-      this.initHls();
-    } else {
-      this.loadMp4();
-    }
-  }
-
-  private async loadMp4(): Promise<void> {
-    const video = this.videoRef()?.nativeElement;
-    if (!video || !this.gif()) return;
-    const rawUrl = this.quality === 'hd' ? this.gif()!.urls.hd : this.gif()!.urls.sd;
-    const url = rawUrl || '';
-    if (Capacitor.isNativePlatform()) {
-      video.src = await this.mediaProxy.proxyVideoProgressive(url);
-    } else {
-      video.src = this.api.proxyUrl(url);
-    }
-    const play = () => video.play().catch(() => {});
-    video.readyState >= 2 ? play() : video.addEventListener('canplay', play, { once: true });
-  }
-
-  private async initHls(): Promise<void> {
-    const video = this.videoRef()?.nativeElement;
-    if (!video || !this.gif()) return;
-
-    this.hls?.destroy();
-    this.hls = undefined;
-    video.removeAttribute('src');
-
-    try {
-      const token = await this.api.ensureAuthToken();
-      const blobUrl = await this.mediaProxy.proxyM3u8(this.api.hlsUrl(this.gif()!.id, this.quality), token);
-      this.blobUrls.push(blobUrl);
-
-      this.hls = new Hls({ fLoader: CacheFragmentLoader as any });
-      this.hls.loadSource(blobUrl);
-      this.hls.attachMedia(video);
-      this.hls.on(Hls.Events.MANIFEST_PARSED, () => {
-        video.play().catch(() => {});
-      });
-      this.hls.on(Hls.Events.ERROR, (event, data) => {
-        if (data.fatal) {
-          this.usingHls = false;
-          this.loadMp4();
-        }
-      });
-    } catch {
-      this.usingHls = false;
-      this.loadMp4();
-    }
-  }
-
-  private async initPlayer(): Promise<void> {
-    const video = this.videoRef()?.nativeElement;
-    if (this.player || !video || !this.gif()) return;
-    const useHls = this.settings.get().playbackMode === 'hls' && this.gif()?.hls && Hls.isSupported();
-
-    if (useHls) {
-      this.usingHls = true;
-      this.player = new Plyr(video, {
-        controls: [
-          'play-large', 'play', 'progress', 'current-time',
-          'mute', 'volume', 'settings', 'pip', 'airplay', 'fullscreen'
-        ],
-        resetOnEnd: true,
-        hideControls: true,
-        clickToPlay: true,
-        iconUrl: '/assets/plyr/plyr.svg',
-      });
-      this.wireFsEvents();
-      this.player.on('ready', () => {
-        this.setupTracking();
-      });
-      this.initHls();
-      return;
-    }
-
-    const gif = this.gif()!;
-    const rawUrl = this.quality === 'hd' ? gif.urls.hd : gif.urls.sd;
-    const url = rawUrl || '';
-    if (Capacitor.isNativePlatform()) {
-      video.src = await this.mediaProxy.proxyVideoProgressive(url);
-    } else {
-      video.src = this.api.proxyUrl(url);
-    }
-    this.player = new Plyr(video, {
-      controls: [
-        'play-large', 'play', 'progress', 'current-time',
-        'mute', 'volume', 'settings', 'pip', 'airplay', 'fullscreen'
-      ],
-      resetOnEnd: true,
-      hideControls: true,
-      clickToPlay: true,
-      iconUrl: '/assets/plyr/plyr.svg',
-    });
-    this.wireFsEvents();
-    if (!video.hasAttribute('poster')) video.poster = this.posterSrc();
-
-    this.setupTracking();
-    this.player.on('ready', () => {
-      this.player?.play();
-    });
-  }
-
-  private setupTracking(): void {
-    this.player?.on('play', () => { this.playStart = Date.now(); });
-    this.player?.on('pause', () => this.sendDuration());
-    this.player?.on('ended', () => this.sendDuration());
-  }
-
-  private wireFsEvents(): void {
-    if (!Capacitor.isNativePlatform() || !this.player) return;
-    this.player.on('enterfullscreen', () => {
-      console.log('[Watch] Plyr enterfullscreen');
-      SystemBars.hide().catch(() => {});
-    });
-    this.player.on('exitfullscreen', () => {
-      console.log('[Watch] Plyr exitfullscreen');
-      SystemBars.show().catch(() => {});
-    });
-  }
-
-  private sendDuration(): void {
     const g = this.gif();
-    if (!g || this.playStart === 0) return;
-    const elapsed = Date.now() - this.playStart;
-    if (elapsed > 1000) {
-      this.trackDurationMutation.mutate({ gifId: g.id, duration: elapsed });
+    if (g?.userName) {
+      this.router.navigate(['/creator', g.userName]);
     }
-    this.playStart = 0;
-  }
-
-  ngOnDestroy(): void {
-    this.sendDuration();
-    this.videoRef()?.nativeElement?.pause();
-    this.videoState.onPause(this.gif()?.id || '');
-    this.hls?.destroy();
-    this.player?.destroy();
-    this.blobUrls.forEach(url => this.mediaProxy.abortProgressiveStream(url));
-  }
-
-  download(): void {
-    const g = this.gif();
-    if (!g) return;
-    const url = this.quality === 'hd' ? g.urls.hd : g.urls.sd;
-    const a = document.createElement('a');
-    a.href = url || '';
-    a.download = `${g.id}.mp4`;
-    a.click();
-  }
-
-  readonly isFav = computed(() => this.gif() ? this.favService.isFavorite(this.gif()!.id) : false);
-
-  toggleFav(): void {
-    const g = this.gif();
-    if (g) this.favService.toggle(g);
   }
 }

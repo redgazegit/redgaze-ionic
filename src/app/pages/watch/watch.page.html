@@ -5,20 +5,20 @@
     </ion-buttons>
     @if (gif(); as g) {
       <ion-title data-testid="watch-creator-name" (click)="goToCreator()" style="cursor:pointer">@{{ g.userName }}</ion-title>
-    }
-    <ion-buttons slot="end">
-      @if (hasHd()) {
-        <ion-button data-testid="watch-quality-toggle" (click)="toggleQuality()">
-          <ion-label>{{ quality === 'hd' ? 'HD' : 'SD' }}</ion-label>
+      <ion-buttons slot="end">
+        @if (g.urls.hd) {
+          <ion-button data-testid="watch-quality-toggle" (click)="playerRef()?.toggleQuality()">
+            <ion-label>{{ settings.get().quality === 'hd' ? 'HD' : 'SD' }}</ion-label>
+          </ion-button>
+        }
+        <ion-button data-testid="watch-fav-btn" (click)="playerRef()?.toggleFav()">
+          <ion-icon [name]="favService.isFavorite(g.id) ? 'heart' : 'heart-outline'"></ion-icon>
         </ion-button>
-      }
-      <ion-button data-testid="watch-fav-btn" (click)="toggleFav()">
-        <ion-icon [name]="isFav() ? 'heart' : 'heart-outline'"></ion-icon>
-      </ion-button>
-      <ion-button data-testid="watch-download-btn" (click)="download()">
-        <ion-icon name="download-outline"></ion-icon>
-      </ion-button>
-    </ion-buttons>
+        <ion-button data-testid="watch-download-btn" (click)="playerRef()?.download()">
+          <ion-icon name="download-outline"></ion-icon>
+        </ion-button>
+      </ion-buttons>
+    }
   </ion-toolbar>
 </ion-header>
 
@@ -36,24 +36,12 @@
   }
 
   @if (gif(); as g) {
-    <div class="video-container" data-testid="video-container">
-      <video
-        #videoPlayer
-        [poster]="posterSrc()"
-        playsinline
-        muted
-        preload="auto"
-      ></video>
-    </div>
-  } @else if (!loading() && !error()) {
-    <div class="error-state">
-      <ion-icon name="file-tray-outline"></ion-icon>
-      <h2>GIF not found</h2>
-      <ion-button fill="outline" routerLink="/home">Back to Home</ion-button>
-    </div>
-  }
+    <app-video-player
+      [gif]="g"
+      [mode]="'watch'"
+      (durationElapsed)="onDuration($event)"
+    />
 
-  @if (gif(); as g) {
     <div class="gif-details" data-testid="gif-details">
       <ion-list>
         <ion-item button (click)="goToCreator()" data-testid="watch-creator-detail">
@@ -130,6 +118,12 @@
           }
         </ion-item>
       </ion-list>
+    </div>
+  } @else if (!loading() && !error()) {
+    <div class="error-state">
+      <ion-icon name="file-tray-outline"></ion-icon>
+      <h2>GIF not found</h2>
+      <ion-button fill="outline" routerLink="/home">Back to Home</ion-button>
     </div>
   }
 </ion-content>
