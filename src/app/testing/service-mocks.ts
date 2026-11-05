@@ -139,13 +139,16 @@ export class MockWatchQueueService {
     return false;
   };
 
-  restoreFromSession = (): boolean => {
+  restoreFromSession = (id?: string): boolean => {
     const saved = sessionStorage.getItem('watch-queue');
     if (saved) {
       try {
         const data = JSON.parse(saved);
-        this._buffer = data.buffer || [];
-        this._cursor = data.cursor || 0;
+        const buffer = data.buffer || [];
+        const cursor = id ? buffer.findIndex((g: any) => g.id === id) : data.cursor || 0;
+        if (cursor < 0) return false;
+        this._buffer = buffer;
+        this._cursor = cursor < buffer.length ? cursor : 0;
         this._current = this._buffer[this._cursor] || null;
         this._syncSignals();
         return true;

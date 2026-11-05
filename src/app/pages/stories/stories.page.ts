@@ -1,5 +1,6 @@
-import { Component, OnInit, OnDestroy, inject, computed, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, OnDestroy, inject, computed, signal, ChangeDetectionStrategy } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { firstValueFrom } from 'rxjs';
 import { RedgifsApiService } from '../../services/redgifs-api.service';
 import { FavoritesService } from '../../services/favorites.service';
 import { WatchQueueService } from '../../services/watch-queue.service';
@@ -26,18 +27,27 @@ export class StoriesPage implements OnInit, OnDestroy {
   readonly position = this.watchQueue.position;
   readonly total = this.watchQueue.total;
   readonly loading = this.watchQueue.loading;
+  readonly fetching = signal(false);
 
   private touchStartY = 0;
   private touchStartX = 0;
 
   ngOnInit(): void {
-    if (!this.total()) {
-      const restored = this.watchQueue.restoreFromSession();
-      if (!restored) {
-        this.router.navigate(['/home']);
-        return;
-      }
+    const id = this.route.snapshot.paramMap.get('id') || '';
+    if (id && this.watchQueue.current()?.id === id) return;
+
+    if (this.watchQueue.restoreFromSession(id || undefined)) return;
+
+    if (!id) {
+      this.router.navigate(['/home']);
+      return;
     }
+
+    this.fetching.set(true);
+    firstValueFrom(this.api.getGif(id))
+      .then(gif => this.watchQueue.setQueue([gif], 0))
+      .catch(() => this.router.navigate(['/home']))
+      .finally(() => this.fetching.set(false));
   }
 
   ngOnDestroy(): void {

@@ -153,10 +153,6 @@ export interface ViewedDurationEvent {
   client: string;
 }
 
-export interface RefreshResult {
-  gifs: Gif[];
-}
-
 export interface NicheInfo {
   niche: Niche;
   gifs?: Gif[];

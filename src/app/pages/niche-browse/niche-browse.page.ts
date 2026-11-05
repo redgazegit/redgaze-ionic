@@ -34,7 +34,7 @@ export class NicheBrowsePage implements OnInit {
   readonly gifsQuery = injectInfiniteQuery(() => ({
     queryKey: ['nicheGifs', this.nicheId()],
     queryFn: ({ pageParam }) => firstValueFrom(
-      this.api.getNicheGifs(this.nicheId(), 'trending', 40, pageParam as number)
+      this.api.getNicheGifs(this.nicheId(), '', 40, pageParam as number)
     ),
     initialPageParam: 1,
     getNextPageParam: lastPage => lastPage.page < lastPage.pages ? lastPage.page + 1 : undefined,

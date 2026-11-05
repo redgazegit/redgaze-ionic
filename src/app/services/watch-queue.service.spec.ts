@@ -90,6 +90,25 @@ describe('WatchQueueService', () => {
     expect(service.position()).toBe(2);
   });
 
+  it('should restore and seek to the requested gif id', () => {
+    window.sessionStorage.setItem('redgaze_watch_queue', JSON.stringify({
+      buffer: [fakeGif({ id: 'x' }), fakeGif({ id: 'y' }), fakeGif({ id: 'z' })],
+      cursor: 2
+    }));
+    const restored = service.restoreFromSession('x');
+    expect(restored).toBe(true);
+    expect(service.current()?.id).toBe('x');
+    expect(service.position()).toBe(1);
+  });
+
+  it('should return false when the requested id is not in the restored buffer', () => {
+    window.sessionStorage.setItem('redgaze_watch_queue', JSON.stringify({
+      buffer: [fakeGif({ id: 'x' }), fakeGif({ id: 'y' })],
+      cursor: 0
+    }));
+    expect(service.restoreFromSession('missing')).toBe(false);
+  });
+
   it('should clear and reset everything', () => {
     const gifs = [fakeGif({ id: 'a' }), fakeGif({ id: 'b' })];
     service.setQueue(gifs, 0);

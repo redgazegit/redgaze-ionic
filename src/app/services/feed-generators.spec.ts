@@ -222,7 +222,7 @@ describe('feed-generators', () => {
 
       expect(first.done).toBe(false);
       expect(first.value).toHaveLength(4);
-      expect(api.getNicheGifs).toHaveBeenCalledWith('niche-123', 'trending', 40, 2);
+      expect(api.getNicheGifs).toHaveBeenCalledWith('niche-123', '', 40, 2);
     });
 
     it('should stop when empty gifs returned', async () => {
