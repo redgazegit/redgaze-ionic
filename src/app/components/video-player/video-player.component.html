@@ -2,7 +2,7 @@
   <div class="player-container">
     <video
       #videoPlayer
-      [src]="videoSrc()"
+      [attr.src]="videoSrc() || null"
       attr.poster="{{posterSrc()}}"
       playsinline
       muted
