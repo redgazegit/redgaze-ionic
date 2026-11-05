@@ -85,7 +85,7 @@ describe('nativeHttpInterceptor', () => {
   it('should throw HttpErrorResponse on 500', async () => {
     isNativePlatform.mockReturnValue(true);
     capacitorRequest.mockResolvedValue({ status: 500, data: 'boom', headers: {} });
-    const req = new HttpRequest('POST', '/api/v2/metrics/gifs', { event: 'viewed' });
+    const req = new HttpRequest('POST', '/api/v2/gifs/search', { tags: 'test' });
 
     const error = await run(req).catch(err => err);
 

@@ -88,22 +88,18 @@ describe('WatchPage', () => {
   });
 
   describe('ngOnInit', () => {
-    it('should set id from route param and track view', async () => {
+    it('should set id from route param', async () => {
       await initModule(makeActivatedRoute('test-gif-123'));
       const page = createPage();
-      vi.spyOn(page.trackViewMutation, 'mutate');
       page.ngOnInit();
       expect((page as any).id()).toBe('test-gif-123');
-      expect(page.trackViewMutation.mutate).toHaveBeenCalledWith('test-gif-123');
     });
 
     it('should handle null route param gracefully', async () => {
       await initModule(makeActivatedRoute(null));
       const page = createPage();
-      vi.spyOn(page.trackViewMutation, 'mutate');
       page.ngOnInit();
       expect((page as any).id()).toBe('');
-      expect(page.trackViewMutation.mutate).not.toHaveBeenCalled();
     });
   });
 
@@ -309,62 +305,8 @@ describe('WatchPage', () => {
     });
   });
 
-  describe('sendDuration', () => {
-    beforeEach(async () => await initModule());
-    function setupPage() {
-      const page = createPage();
-      vi.spyOn(page as any, 'gif').mockReturnValue({ id: 'test-dur' } as any);
-      vi.spyOn(page.trackDurationMutation, 'mutate');
-      return page;
-    }
-
-    it('should send duration when playStart is set and elapsed > 1s', () => {
-      const page = setupPage();
-      (page as any).playStart = Date.now() - 5000;
-      (page as any).sendDuration();
-      expect(page.trackDurationMutation.mutate).toHaveBeenCalled();
-    });
-
-    it('should not send duration when playStart is 0', () => {
-      const page = setupPage();
-      (page as any).playStart = 0;
-      (page as any).sendDuration();
-      expect(page.trackDurationMutation.mutate).not.toHaveBeenCalled();
-    });
-
-    it('should not send duration when elapsed <= 1s', () => {
-      const page = setupPage();
-      (page as any).playStart = Date.now() - 500;
-      (page as any).sendDuration();
-      expect(page.trackDurationMutation.mutate).not.toHaveBeenCalled();
-    });
-
-    it('should reset playStart to 0 after sending', () => {
-      const page = setupPage();
-      (page as any).playStart = Date.now() - 5000;
-      (page as any).sendDuration();
-      expect((page as any).playStart).toBe(0);
-    });
-  });
-
-  describe('setupTracking', () => {
-    beforeEach(async () => await initModule());
-    it('should register play, pause, ended handlers on player', () => {
-      const fixture = TestBed.createComponent(WatchPage);
-      fixture.detectChanges();
-      const page = fixture.componentInstance;
-      const player = { on: vi.fn(), destroy: vi.fn() };
-      (page as any).player = player;
-      (page as any).setupTracking();
-      fixture.destroy();
-      expect(player.on).toHaveBeenCalledWith('play', expect.any(Function));
-      expect(player.on).toHaveBeenCalledWith('pause', expect.any(Function));
-      expect(player.on).toHaveBeenCalledWith('ended', expect.any(Function));
-    });
-  });
-
   describe('ngOnDestroy', () => {
-    it('should send duration and destroy hls, player, blob URLs', async () => {
+    it('should destroy hls, player and blob URLs', async () => {
       await initModule(makeActivatedRoute('test'));
       const fixture = TestBed.createComponent(WatchPage);
       fixture.detectChanges();
@@ -372,12 +314,10 @@ describe('WatchPage', () => {
       page.player = { destroy: vi.fn() };
       page.hls = { destroy: vi.fn() };
       page.blobUrls = ['blob:http://test'];
-      vi.spyOn(page, 'sendDuration');
       vi.spyOn(URL, 'revokeObjectURL');
 
       fixture.destroy();
 
-      expect(page.sendDuration).toHaveBeenCalled();
       expect(page.hls.destroy).toHaveBeenCalled();
       expect(page.player.destroy).toHaveBeenCalled();
       expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:http://test');

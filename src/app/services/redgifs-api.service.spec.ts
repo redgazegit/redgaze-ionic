@@ -335,28 +335,6 @@ describe('RedgifsApiService', () => {
     httpCtrl.expectOne('/api/v2/niches/niche-1/gifs?count=20&page=1&order=top').flush({ gifs: [] });
   });
 
-  // ── POST endpoints ─────────────────────────────────────────────
-
-  it('should track content viewed', () => {
-    initService();
-    service.trackContentViewed('gif-1').subscribe();
-    flushAuth();
-    const req = httpCtrl.expectOne('/api/v2/metrics/gifs');
-    expect(req.request.method).toBe('POST');
-    expect(req.request.body).toEqual({ gif: 'gif-1', event: 'viewed', client: 'redgaze-ionic/1.0' });
-    req.flush({});
-  });
-
-  it('should track viewed duration', () => {
-    initService();
-    service.trackViewedDuration('gif-1', 5000).subscribe();
-    flushAuth();
-    const req = httpCtrl.expectOne('/api/v2/metrics/gifs');
-    expect(req.request.method).toBe('POST');
-    expect(req.request.body).toEqual({ gif: 'gif-1', event: 'duration', duration: 5000, client: 'redgaze-ionic/1.0' });
-    req.flush({});
-  });
-
   // ── Retry logic ────────────────────────────────────────────────
 
   it('should retry on 429 with Retry-After', fakeAsync(() => {
@@ -619,14 +597,5 @@ describe('RedgifsApiService', () => {
     initService();
     localStorage.removeItem('redgifs_trending_niches');
     expect(service.getCachedTrendingNiches()).toEqual([]);
-  });
-
-  it('should emit error on non-401 POST error after retry', () => {
-    initService();
-    let error: any;
-    service.trackContentViewed('gif-1').subscribe({ error: err => error = err });
-    flushAuth();
-    httpCtrl.expectOne('/api/v2/metrics/gifs').flush('Server Error', { status: 500, statusText: 'Server Error' });
-    expect(error).toBeTruthy();
   });
 });

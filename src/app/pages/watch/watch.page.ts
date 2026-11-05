@@ -1,6 +1,6 @@
 import { Component, OnInit, viewChild, ElementRef, OnDestroy, signal, computed, effect, inject, ChangeDetectionStrategy } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { injectQuery, injectMutation } from '@tanstack/angular-query-experimental';
+import { injectQuery } from '@tanstack/angular-query-experimental';
 import { firstValueFrom } from 'rxjs';
 import Plyr from 'plyr';
 import Hls from 'hls.js';
@@ -44,7 +44,6 @@ export class WatchPage implements OnInit, OnDestroy {
   usingHls = false;
   private player?: Plyr;
   private hls?: Hls;
-  private playStart = 0;
   private blobUrls: string[] = [];
 
   readonly gifQuery = injectQuery(() => ({
@@ -52,15 +51,6 @@ export class WatchPage implements OnInit, OnDestroy {
     queryFn: () => firstValueFrom(this.api.getGif(this.id())),
     enabled: this.id() !== '',
     staleTime: 1000 * 60 * 5,
-  }));
-
-  readonly trackViewMutation = injectMutation(() => ({
-    mutationFn: (gifId: string) => firstValueFrom(this.api.trackContentViewed(gifId)),
-  }));
-
-  readonly trackDurationMutation = injectMutation(() => ({
-    mutationFn: ({ gifId, duration }: { gifId: string; duration: number }) =>
-      firstValueFrom(this.api.trackViewedDuration(gifId, duration)),
   }));
 
   readonly gif = computed(() => this.gifQuery.data());
@@ -95,9 +85,6 @@ export class WatchPage implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.id.set(this.route.snapshot.paramMap.get('id') || '');
-    if (this.id()) {
-      this.trackViewMutation.mutate(this.id());
-    }
   }
 
   readonly posterSrc = signal('');
@@ -182,9 +169,6 @@ export class WatchPage implements OnInit, OnDestroy {
         iconUrl: '/assets/plyr/plyr.svg',
       });
       this.wireFsEvents();
-      this.player.on('ready', () => {
-        this.setupTracking();
-      });
       this.initHls();
       return;
     }
@@ -210,16 +194,9 @@ export class WatchPage implements OnInit, OnDestroy {
     this.wireFsEvents();
     if (!video.hasAttribute('poster')) video.poster = this.posterSrc();
 
-    this.setupTracking();
     this.player.on('ready', () => {
       this.player?.play();
     });
-  }
-
-  private setupTracking(): void {
-    this.player?.on('play', () => { this.playStart = Date.now(); });
-    this.player?.on('pause', () => this.sendDuration());
-    this.player?.on('ended', () => this.sendDuration());
   }
 
   private wireFsEvents(): void {
@@ -234,18 +211,7 @@ export class WatchPage implements OnInit, OnDestroy {
     });
   }
 
-  private sendDuration(): void {
-    const g = this.gif();
-    if (!g || this.playStart === 0) return;
-    const elapsed = Date.now() - this.playStart;
-    if (elapsed > 1000) {
-      this.trackDurationMutation.mutate({ gifId: g.id, duration: elapsed });
-    }
-    this.playStart = 0;
-  }
-
   ngOnDestroy(): void {
-    this.sendDuration();
     this.videoRef()?.nativeElement?.pause();
     this.videoState.onPause(this.gif()?.id || '');
     this.hls?.destroy();
