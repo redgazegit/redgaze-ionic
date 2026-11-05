@@ -40,6 +40,8 @@ export class VideoPlayerComponent implements OnDestroy {
   private sourceAttached = false;
   private sourceGeneration = 0;
   private sourceGifId: string | null = null;
+  private inPlayZone = false;
+  private playRetries = 0;
   readonly sourceReady = signal(false);
   readonly preloadStrategy = signal<'none' | 'metadata'>('none');
 
@@ -60,7 +62,6 @@ export class VideoPlayerComponent implements OnDestroy {
           this.sourceGifId = gif.id;
         }
         this.ensureSource();
-        videoEl.play().catch(() => {});
         return;
       }
 
@@ -74,13 +75,13 @@ export class VideoPlayerComponent implements OnDestroy {
           if (entry.isIntersecting) {
             this.ensureSource();
             if (!this.player) {
-              if (this.videoSrc()) videoEl.src = this.videoSrc();
               this.createPlyr(videoEl);
             }
             return;
           }
 
           clearTimeout(this.playTimer);
+          this.inPlayZone = false;
           this.videoState.onPause(this.gif().id);
           this.player?.pause();
           this.releaseSource();
@@ -91,22 +92,32 @@ export class VideoPlayerComponent implements OnDestroy {
       this.playObserver = new IntersectionObserver(entries => {
         entries.forEach(entry => {
           if (!this.player || document.fullscreenElement) return;
-          clearTimeout(this.playTimer);
 
-          if (entry.isIntersecting && entry.intersectionRatio >= 0.3) {
+          if (entry.isIntersecting) {
             this.ensureSource();
-            this.playTimer = setTimeout(() => {
-              if (this.player && this.videoState.requestPlay(this.gif().id)) {
-                this.player.play().catch(() => {});
-              }
-            }, 400);
+            this.inPlayZone = true;
+            this.playRetries = 0;
+            this.schedulePlay();
           } else {
+            this.inPlayZone = false;
+            clearTimeout(this.playTimer);
             this.videoState.onPause(this.gif().id);
             this.player.pause();
           }
         });
-      }, { threshold: [0, 0.3, 0.5, 0.75, 1] });
+      }, { rootMargin: '-15% 0px -15% 0px', threshold: [0, 0.05, 0.1, 0.2, 0.3, 0.5, 0.75, 1] });
       this.playObserver.observe(videoEl);
+    });
+
+    effect(() => {
+      if (!this.storiesMode() || !this.sourceReady()) return;
+      const videoEl = this.videoRef()?.nativeElement;
+      const src = this.videoSrc();
+      if (!videoEl || !src) return;
+      videoEl.muted = true;
+      queueMicrotask(() => {
+        if (videoEl.isConnected) videoEl.play().catch(() => {});
+      });
     });
 
     effect(() => {
@@ -115,6 +126,19 @@ export class VideoPlayerComponent implements OnDestroy {
         this.player.pause();
       }
     });
+  }
+
+  private schedulePlay(): void {
+    clearTimeout(this.playTimer);
+    this.playTimer = setTimeout(() => {
+      if (!this.inPlayZone || !this.player) return;
+      if (this.videoState.requestPlay(this.gif().id)) {
+        this.playRetries = 0;
+        this.player.play().catch(() => {});
+      } else if (this.playRetries++ < 10) {
+        this.schedulePlay();
+      }
+    }, 400);
   }
 
   private setMediaSources(rawUrl: string, thumb: string, gen: number): void {
@@ -207,6 +231,7 @@ export class VideoPlayerComponent implements OnDestroy {
 
   ngOnDestroy(): void {
     clearTimeout(this.playTimer);
+    this.inPlayZone = false;
     this.preloadObserver?.disconnect();
     this.playObserver?.disconnect();
     this.player?.destroy();

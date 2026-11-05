@@ -3,7 +3,7 @@
     <video
       #videoPlayer
       [attr.src]="videoSrc() || null"
-      attr.poster="{{posterSrc()}}"
+      [attr.poster]="posterSrc() || null"
       playsinline
       muted
       [attr.preload]="preloadStrategy()"

@@ -22,6 +22,7 @@ let observerCallback: IntersectionObserverCallback | null;
 let playObserverCallback: IntersectionObserverCallback | null;
 
 class MockObserver {
+  static instances: MockObserver[] = [];
   callback: IntersectionObserverCallback;
   options?: IntersectionObserverInit;
   observe = vi.fn();
@@ -31,9 +32,10 @@ class MockObserver {
   constructor(cb: IntersectionObserverCallback, options?: IntersectionObserverInit) {
     this.callback = cb;
     this.options = options;
-    if (!observerCallback) {
+    MockObserver.instances.push(this);
+    if (MockObserver.instances.length === 1) {
       observerCallback = cb;
-    } else {
+    } else if (MockObserver.instances.length === 2) {
       playObserverCallback = cb;
     }
   }
@@ -49,6 +51,7 @@ describe('VideoPlayerComponent', () => {
   beforeEach(async () => {
     observerCallback = null;
     playObserverCallback = null;
+    MockObserver.instances = [];
     mockFav = new MockFavoritesService();
     mockApi = new MockRedgifsApiService();
     mockSettings = new MockSettingsService();
@@ -65,6 +68,10 @@ describe('VideoPlayerComponent', () => {
       ],
       schemas: [CUSTOM_ELEMENTS_SCHEMA],
     }).compileComponents();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   afterAll(() => {
@@ -282,7 +289,7 @@ describe('VideoPlayerComponent', () => {
       expect(fixture.componentInstance.videoSrc()).toBe('/cdn/hd.mp4');
     });
 
-    it('should swap the source when the gif input changes', () => {
+    it('should swap the source when the gif input changes', async () => {
       const gifA = fakeGif({
         id: 'story-a',
         urls: { sd: '', hd: 'https://media.redgifs.com/a-hd.mp4', thumbnail: 'https://media.redgifs.com/a.jpg' },
@@ -292,14 +299,25 @@ describe('VideoPlayerComponent', () => {
         urls: { sd: '', hd: 'https://media.redgifs.com/b-hd.mp4', thumbnail: 'https://media.redgifs.com/b.jpg' },
       });
 
+      const playedSrc: Array<string | null> = [];
+      vi.spyOn(HTMLMediaElement.prototype, 'play').mockImplementation(function (this: HTMLMediaElement) {
+        playedSrc.push(this.getAttribute('src'));
+        return Promise.resolve();
+      });
+
       const fixture = createComponent(gifA, true);
       fixture.detectChanges();
+      await fixture.whenStable();
       expect(fixture.componentInstance.videoSrc()).toBe('/cdn/a-hd.mp4');
+      expect(playedSrc.at(-1)).toBe('/cdn/a-hd.mp4');
+      expect(fixture.componentInstance['videoRef']()!.nativeElement.muted).toBe(true);
 
       fixture.componentRef.setInput('gif', gifB);
       fixture.detectChanges();
+      await fixture.whenStable();
       expect(fixture.componentInstance.videoSrc()).toBe('/cdn/b-hd.mp4');
       expect(fixture.componentInstance.posterSrc()).toBe('/cdn/b.jpg');
+      expect(playedSrc.at(-1)).toBe('/cdn/b-hd.mp4');
     });
   });
 
@@ -327,7 +345,7 @@ describe('VideoPlayerComponent', () => {
       expect(getPlayer(fixture).pause).toHaveBeenCalled();
     });
 
-    it('should play after 400ms when at least 30% visible and allowed', () => {
+    it('should play after 400ms when inside the play zone and allowed', () => {
       const fixture = createComponent();
       fixture.detectChanges();
       observerCallback!([{ isIntersecting: true, intersectionRatio: 0 } as IntersectionObserverEntry], null! as any);
@@ -349,14 +367,23 @@ describe('VideoPlayerComponent', () => {
       expect(getPlayer(fixture).play).not.toHaveBeenCalled();
     });
 
-    it('should pause when the visible ratio drops below 30%', () => {
+    it('should pause when it leaves the play zone', () => {
       const fixture = createComponent();
       fixture.detectChanges();
       observerCallback!([{ isIntersecting: true, intersectionRatio: 0 } as IntersectionObserverEntry], null! as any);
+      playObserverCallback!([{ isIntersecting: true, intersectionRatio: 0.5 } as IntersectionObserverEntry], null! as any);
       vi.spyOn(mockVideoState, 'onPause');
-      playObserverCallback!([{ isIntersecting: true, intersectionRatio: 0.1 } as IntersectionObserverEntry], null! as any);
+      playObserverCallback!([{ isIntersecting: false, intersectionRatio: 0 } as IntersectionObserverEntry], null! as any);
       expect(mockVideoState.onPause).toHaveBeenCalled();
       expect(getPlayer(fixture).pause).toHaveBeenCalled();
+    });
+
+    it('should preload with a 400px margin and play against the central viewport band', () => {
+      const fixture = createComponent();
+      fixture.detectChanges();
+      expect(MockObserver.instances).toHaveLength(2);
+      expect(MockObserver.instances[0].options?.rootMargin).toBe('400px 0px');
+      expect(MockObserver.instances[1].options?.rootMargin).toBe('-15% 0px -15% 0px');
     });
   });
 
