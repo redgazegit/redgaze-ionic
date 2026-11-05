@@ -31,6 +31,11 @@
 .video-wrapper {
   height: 85vh;
   width: 100%;
+
+  app-video-player {
+    display: block;
+    height: 100%;
+  }
 }
 
 .gif-info {
