@@ -97,6 +97,82 @@ describe('RedgifsApiService', () => {
     expect(error.message).toBe('Auth failed');
   });
 
+  it('should respect the rate limiter gap before re-authenticating', fakeAsync(() => {
+    initService();
+    (TestBed.inject(SettingsService) as any).update({ rateLimitEnabled: true });
+
+    service.getTopThisWeek().subscribe();
+    httpCtrl.expectOne('/api/v2/auth/temporary').flush({ token: 'first-token' });
+    tick(1000);
+    httpCtrl.expectOne(TOP_WEEK_PATH).flush({ gifs: [] });
+
+    (service as any).tokenExpiry = Date.now() - 1;
+
+    service.getTopThisWeek().subscribe();
+    expect(httpCtrl.match('/api/v2/auth/temporary').length).toBe(0);
+
+    tick(1000);
+    const authRequests = httpCtrl.match('/api/v2/auth/temporary');
+    expect(authRequests.length).toBe(1);
+    authRequests[0].flush({ token: 'second-token' });
+
+    tick(2000);
+    httpCtrl.expectOne(TOP_WEEK_PATH).flush({ gifs: [] });
+    expect(service.getToken()).toBe('second-token');
+  }));
+
+  it('should share a single queued auth request between concurrent callers', fakeAsync(() => {
+    initService();
+    (TestBed.inject(SettingsService) as any).update({ rateLimitEnabled: true });
+
+    service.getTopThisWeek().subscribe();
+    service.getTopThisWeek().subscribe();
+
+    const authRequests = httpCtrl.match('/api/v2/auth/temporary');
+    expect(authRequests.length).toBe(1);
+    authRequests[0].flush({ token: 'shared-token' });
+
+    tick(2000);
+    for (const req of httpCtrl.match(TOP_WEEK_PATH)) {
+      req.flush({ gifs: [] });
+    }
+    tick(5000);
+  }));
+
+  it('should retry auth on 429 with Retry-After', fakeAsync(() => {
+    initService();
+    (TestBed.inject(SettingsService) as any).update({ rateLimitEnabled: true });
+
+    service.getTopThisWeek().subscribe();
+    tick(0);
+    httpCtrl.expectOne('/api/v2/auth/temporary')
+      .flush('Rate limited', { status: 429, statusText: 'Too Many Requests', headers: { 'Retry-After': '0' } });
+
+    tick(2000);
+    httpCtrl.expectOne('/api/v2/auth/temporary').flush({ token: 'retry-token' });
+    tick(2000);
+    httpCtrl.expectOne(TOP_WEEK_PATH).flush({ gifs: [] });
+
+    expect(service.getToken()).toBe('retry-token');
+  }));
+
+  it('should stop retrying auth 429 after MAX_RETRIES and reject', fakeAsync(() => {
+    initService();
+    (TestBed.inject(SettingsService) as any).update({ rateLimitEnabled: true });
+
+    let error: any;
+    service.getTopThisWeek().subscribe({ error: err => error = err });
+    tick(0);
+
+    for (let i = 0; i < 4; i++) {
+      httpCtrl.expectOne('/api/v2/auth/temporary')
+        .flush('Rate limited', { status: 429, statusText: 'Too Many Requests', headers: { 'Retry-After': '0' } });
+      tick(3000);
+    }
+
+    expect(error.message).toBe('Auth failed');
+  }));
+
   // ── GET endpoints ──────────────────────────────────────────────
 
 
@@ -290,7 +366,7 @@ describe('RedgifsApiService', () => {
     let result: any;
     service.getTopThisWeek().subscribe(r => result = r);
     flushAuth();
-    tick(100); // flush initial waitForSlot + request
+    tick(2000); // flush initial waitForSlot + request
 
     httpCtrl.expectOne(TOP_WEEK_PATH)
       .flush('Rate limited', { status: 429, statusText: 'Too Many Requests', headers: { 'Retry-After': '0' } });
@@ -308,7 +384,7 @@ describe('RedgifsApiService', () => {
     let error: any;
     service.getTopThisWeek().subscribe({ error: err => error = err });
     flushAuth();
-    tick(100);
+    tick(2000);
 
     for (let i = 0; i < 4; i++) {
       httpCtrl.expectOne(TOP_WEEK_PATH)

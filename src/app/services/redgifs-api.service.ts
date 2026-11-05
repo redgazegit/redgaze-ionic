@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpHeaders, HttpErrorResponse } from '@angular/common/http';
 import { Observable, of, throwError, firstValueFrom, timer, Subject, ReplaySubject } from 'rxjs';
-import { switchMap, map, tap, catchError, shareReplay, concatMap, ignoreElements } from 'rxjs/operators';
+import { switchMap, map, tap, catchError, shareReplay, concatMap, ignoreElements, finalize } from 'rxjs/operators';
 import { SettingsService } from './settings.service';
 import { API_CONFIG } from './api-config';
 import {
@@ -70,25 +70,37 @@ export class RedgifsApiService {
   private ensureAuth(): Observable<boolean> {
     if (this.token && Date.now() < this.tokenExpiry) return of(true);
     if (this.authInFlight$) return this.authInFlight$;
-    this.authInFlight$ = this.http.get<TempToken>(`${this.config.baseUrl}/v2/auth/temporary`, {
-      headers: new HttpHeaders({ 'Accept': 'application/json' })
-    }).pipe(
+    this.authInFlight$ = this.requestTempToken().pipe(
       tap(t => {
         this.token = t.token;
         this.tokenExpiry = Date.now() + this.TOKEN_TTL;
         localStorage.setItem(this.TOKEN_KEY, this.token);
         localStorage.setItem(this.EXPIRY_KEY, String(this.tokenExpiry));
-        this.authInFlight$ = null;
       }),
       map(() => true),
       catchError(err => {
         console.error('Auth error details:', err.status, err.statusText, err.url ?? err.message);
-        this.authInFlight$ = null;
         return throwError(() => new Error('Auth failed'));
       }),
+      finalize(() => { this.authInFlight$ = null; }),
       shareReplay({ bufferSize: 1, refCount: false }),
     );
     return this.authInFlight$;
+  }
+
+  private requestTempToken(retries = 0): Observable<TempToken> {
+    return this.waitForSlot().pipe(
+      switchMap(() => this.http.get<TempToken>(`${this.config.baseUrl}/v2/auth/temporary`, {
+        headers: new HttpHeaders({ 'Accept': 'application/json' })
+      })),
+      catchError(err => {
+        if (err.status === 429 && this.settings.get().rateLimitEnabled && retries < this.MAX_RETRIES) {
+          this.backoffUntil = Date.now() + this.retryAfterMs(err);
+          return this.requestTempToken(retries + 1);
+        }
+        return throwError(() => err);
+      }),
+    );
   }
 
   private waitForSlot(): Observable<void> {

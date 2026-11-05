@@ -35,6 +35,11 @@
                 "glob": "_routes.json",
                 "input": ".",
                 "output": "."
+              },
+              {
+                "glob": "404.html",
+                "input": "src",
+                "output": "."
               }
             ],
             "styles": [
