@@ -56,11 +56,6 @@ describe('HomePage', () => {
     expect(createPage()).toBeTruthy();
   });
 
-  it('should load trending gifs query', () => {
-    const page = createPage();
-    expect(page.trendingGifs).toBeDefined();
-  });
-
   it('should load trending tags query', () => {
     const page = createPage();
     expect(page.trendingTags).toBeDefined();

@@ -211,18 +211,6 @@ describe('SearchPage', () => {
     });
   });
 
-  describe('goToTag', () => {
-    beforeEach(async () => await initModule());
-
-    it('should navigate to tag search', () => {
-      const { page } = createPage();
-      const routerSpy = vi.fn();
-      (page as any).router = { navigate: routerSpy };
-      page.goToTag('cats');
-      expect(routerSpy).toHaveBeenCalledWith(['/search', 'cats']);
-    });
-  });
-
   describe('onCardClick', () => {
     beforeEach(async () => await initModule());
 

@@ -6,7 +6,7 @@ import { RedgifsApiService } from '../../services/redgifs-api.service';
 import { SettingsService } from '../../services/settings.service';
 import { WatchQueueService } from '../../services/watch-queue.service';
 import { nicheFeedGenerator } from '../../services/feed-generators';
-import { Gif, Niche } from '../../models/gif.model';
+import { Gif } from '../../models/gif.model';
 import { IonBackButton, IonButton, IonButtons, IonContent, IonHeader, IonIcon, IonInfiniteScroll, IonInfiniteScrollContent, IonSpinner, IonTitle, IonToolbar } from '@ionic/angular/standalone';
 
 import { GifCardComponent } from '../../components/gif-card/gif-card.component';
@@ -29,7 +29,6 @@ export class NicheBrowsePage implements OnInit {
   private watchQueue = inject(WatchQueueService);
 
   readonly nicheId = signal('');
-  niche?: Niche;
 
   readonly gifsQuery = injectInfiniteQuery(() => ({
     queryKey: ['nicheGifs', this.nicheId()],

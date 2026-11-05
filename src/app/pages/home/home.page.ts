@@ -110,7 +110,6 @@ export class HomePage {
     });
   }
 
-  readonly trendingGifs = computed(() => this.trendingGifsQuery.data()?.slice(0, 20) ?? []);
   readonly trendingTags = computed(() => this.trendingTagsQuery.data()?.slice(0, 10) ?? []);
   readonly trendingCreators = computed(() => this.trendingCreatorsQuery.data()?.slice(0, 10) ?? []);
   readonly trendingNiches = computed(() => this.trendingNichesQuery.data()?.slice(0, 10) ?? []);

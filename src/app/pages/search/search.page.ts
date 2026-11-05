@@ -145,10 +145,6 @@ export class SearchPage implements OnInit, OnDestroy {
     this.search();
   }
 
-  goToTag(tag: string): void {
-    this.router.navigate(['/search', tag]);
-  }
-
   onCardClick(gifId: string, index: number): void {
     if (this.ss.get().storiesNavigation) {
       this.watchQueue.setQueue(this.results(), index, searchFeedGenerator(this.api, this.query(), this.searchType()));
