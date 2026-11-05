@@ -72,15 +72,16 @@ describe('HomePage', () => {
   });
 
   it('should return gifs from trending query when section is trending', () => {
-    const page = createPage();
+    const fixture = TestBed.createComponent(HomePage);
+    const page = fixture.componentInstance;
     vi.spyOn(page.trendingGifsQuery, 'data', 'get').mockReturnValue(() => [fakeGif()]);
-    expect(page.gifs.length).toBe(1);
+    expect(page.gifs().length).toBe(1);
   });
 
   it('should return empty array when trending data is null', () => {
     const page = createPage();
     vi.spyOn(page.trendingGifsQuery, 'data', 'get').mockReturnValue(() => undefined);
-    expect(page.gifs).toEqual([]);
+    expect(page.gifs()).toEqual([]);
   });
 
   it('should switch section and persist to localStorage', () => {
@@ -95,12 +96,12 @@ describe('HomePage', () => {
   it('should return loading from trending query when trending section', () => {
     const page = createPage();
     vi.spyOn(page.trendingGifsQuery, 'isLoading', 'get').mockReturnValue(() => true);
-    expect(page.loading).toBe(true);
+    expect(page.loading()).toBe(true);
   });
 
   it('should return hasMore false for trending section', () => {
     const page = createPage();
-    expect(page.hasMore).toBe(false);
+    expect(page.hasMore()).toBe(false);
   });
 
   it('should call loadMore when hasMore is true', async () => {
@@ -148,7 +149,7 @@ describe('HomePage', () => {
 
     it('should navigate to /stories with storiesNavigation and non-trending section', () => {
       const page = createPage();
-      vi.spyOn(page, 'gifs', 'get').mockReturnValue(gifs);
+      vi.spyOn(page, 'gifs').mockReturnValue(gifs);
       page.switchSection('popular');
       const navigateSpy = vi.spyOn(router, 'navigate');
       page.onCardClick('g1', 0);
@@ -157,7 +158,7 @@ describe('HomePage', () => {
 
     it('should navigate to /stories with storiesNavigation and trending section', () => {
       const page = createPage();
-      vi.spyOn(page, 'gifs', 'get').mockReturnValue(gifs);
+      vi.spyOn(page, 'gifs').mockReturnValue(gifs);
       const navigateSpy = vi.spyOn(router, 'navigate');
       page.onCardClick('g1', 0);
       expect(navigateSpy).toHaveBeenCalledWith(['/stories', 'g1']);
@@ -166,7 +167,7 @@ describe('HomePage', () => {
     it('should navigate to /watch when storiesNavigation is off', () => {
       mockSettings.setSettings({ playbackMode: 'mp4', quality: 'hd', rateLimitEnabled: true, storiesNavigation: false, gridAutoplay: true });
       const page = createPage();
-      vi.spyOn(page, 'gifs', 'get').mockReturnValue(gifs);
+      vi.spyOn(page, 'gifs').mockReturnValue(gifs);
       const navigateSpy = vi.spyOn(router, 'navigate');
       page.onCardClick('g1', 0);
       expect(navigateSpy).toHaveBeenCalledWith(['/watch', 'g1']);

@@ -256,9 +256,9 @@ export class WatchPage implements OnInit, OnDestroy {
   download(): void {
     const g = this.gif();
     if (!g) return;
-    const url = this.quality === 'hd' ? g.urls.hd : g.urls.sd;
+    const raw = this.quality === 'hd' ? g.urls.hd : g.urls.sd;
     const a = document.createElement('a');
-    a.href = url || '';
+    a.href = this.api.proxyUrl(raw || '');
     a.download = `${g.id}.mp4`;
     a.click();
   }

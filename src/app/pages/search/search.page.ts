@@ -114,16 +114,12 @@ export class SearchPage implements OnInit, OnDestroy {
     const q = (value ?? this.query()).trim();
     if (!q) return;
     this.hasSearched = true;
-    // if (this.searchQuery() !== q) {
-      // this.results = [];
-      // this.relatedUsers = [];
-      // this.relatedTags = [];
-      // this.loading = true;
-    // }
     this.suggestions = [];
     this.suggestSubject.next('');
-    this.searchTypeSig.set(this.searchType());
-    this.searchQuery.set(q);
+    if (this.searchQuery() !== q || this.searchTypeSig() !== this.searchType()) {
+      this.searchTypeSig.set(this.searchType());
+      this.searchQuery.set(q);
+    }
     this.router.navigate(['/search', q], { replaceUrl: true });
   }
 

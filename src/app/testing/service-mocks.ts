@@ -219,10 +219,10 @@ export class MockRedgifsApiService {
   });
 
   proxyUrl = (url: string): string =>
-    url.replace('https://media.redgifs.com', '/cdn');
+    url?.replace('https://media.redgifs.com', '/cdn') ?? '';
 
-  proxyUserpicUrl = (url: string): string =>
-    url.replace('https://userpic.redgifs.com', '/userpic') || 'assets/default-avatar.svg';
+  proxyUserpicUrl = (url?: string | null): string =>
+    url?.replace('https://userpic.redgifs.com', '/userpic') || 'assets/default-avatar.svg';
 
   cachedMediaUrl = async (url: string): Promise<string> =>
     this.proxyUrl(url);

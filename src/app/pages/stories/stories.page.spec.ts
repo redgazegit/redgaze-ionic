@@ -139,13 +139,13 @@ describe('StoriesPage', () => {
     it('should return true when current gif is favorite', () => {
       const { page } = createPage();
       vi.spyOn(mockFav, 'isFavorite').mockReturnValue(true);
-      expect(page.isFav).toBe(true);
+      expect(page.isFav()).toBe(true);
     });
 
     it('should return false when current gif is not favorite', () => {
       const { page } = createPage();
       vi.spyOn(mockFav, 'isFavorite').mockReturnValue(false);
-      expect(page.isFav).toBe(false);
+      expect(page.isFav()).toBe(false);
     });
   });
 

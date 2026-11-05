@@ -1,4 +1,4 @@
-import { CUSTOM_ELEMENTS_SCHEMA, signal } from '@angular/core';
+import { CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter, ActivatedRoute } from '@angular/router';
 import { provideAngularQuery, QueryClient } from '@tanstack/angular-query-experimental';
@@ -41,8 +41,9 @@ describe('CreatorDetailPage', () => {
     });
   }
 
-  function createPage() {
+  function createPage(username = '') {
     const fixture = TestBed.createComponent(CreatorDetailPage);
+    fixture.componentRef.setInput('username', username);
     fixture.detectChanges();
     router = (fixture.componentInstance as any).router;
     return fixture.componentInstance;
@@ -67,17 +68,13 @@ describe('CreatorDetailPage', () => {
     expect(page.gifsQuery).toBeDefined();
   });
 
-  it('should set username from route on init', () => {
-    initModule(makeActivatedRoute('test-creator'));
-    TestBed.compileComponents();
-    const page = createPage();
-    page.ngOnInit();
+  it('should set username from the route input', () => {
+    const page = createPage('test-creator');
     expect((page as any).username()).toBe('test-creator');
   });
 
   it('should handle empty route param', () => {
-    const page = createPage();
-    page.ngOnInit();
+    const page = createPage('');
     expect((page as any).username()).toBe('');
   });
 
@@ -104,12 +101,21 @@ describe('CreatorDetailPage', () => {
     expect(navigateSpy).toHaveBeenCalledWith(['/creator', 'other-user']);
   });
 
-  it('should return social links from user', () => {
+  it('should return no social links when user has none', () => {
     const page = createPage();
-    (page as any).userQuery = { data: signal(undefined) };
-    expect(page.socialLinks).toEqual([]);
-    (page as any).userQuery = { data: signal({ links: [{ domain: 'x.com', url: 'https://x.com/u' }] }) };
-    expect(page.socialLinks.length).toBe(1);
+    expect(page.socialLinks()).toEqual([]);
+  });
+
+  it('should dedupe social links from user', () => {
+    const queryClient = TestBed.inject(QueryClient);
+    queryClient.setQueryData(['user', ''], {
+      links: [
+        { domain: 'x.com', url: 'https://x.com/u' },
+        { domain: 'x.com', url: 'https://x.com/u' },
+      ],
+    });
+    const page = createPage();
+    expect(page.socialLinks().length).toBe(1);
   });
 
   it('should fetch next page on loadMore when hasMore', () => {
@@ -133,7 +139,7 @@ describe('CreatorDetailPage', () => {
   describe('onCardClick', () => {
     it('should navigate to /stories with storiesNavigation', () => {
       const page = createPage();
-      vi.spyOn(page as any, 'gifs', 'get').mockReturnValue([fakeGif({ id: 'g1' })]);
+      vi.spyOn(page as any, 'gifs').mockReturnValue([fakeGif({ id: 'g1' })]);
       const navigateSpy = vi.spyOn(router, 'navigate');
       page.onCardClick('g1', 0);
       expect(navigateSpy).toHaveBeenCalledWith(['/stories', 'g1']);
@@ -142,7 +148,7 @@ describe('CreatorDetailPage', () => {
     it('should navigate to /watch without storiesNavigation', () => {
       mockSettings.setSettings({ playbackMode: 'mp4', quality: 'hd', rateLimitEnabled: true, storiesNavigation: false, gridAutoplay: true });
       const page = createPage();
-      vi.spyOn(page as any, 'gifs', 'get').mockReturnValue([fakeGif({ id: 'g1' })]);
+      vi.spyOn(page as any, 'gifs').mockReturnValue([fakeGif({ id: 'g1' })]);
       const navigateSpy = vi.spyOn(router, 'navigate');
       page.onCardClick('g1', 0);
       expect(navigateSpy).toHaveBeenCalledWith(['/watch', 'g1']);
