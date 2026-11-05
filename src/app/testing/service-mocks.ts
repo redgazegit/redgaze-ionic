@@ -1,6 +1,7 @@
 // Mock service implementations for testing
 import { signal } from '@angular/core';
 import { Gif } from '../models/gif.model';
+import { AppSettings } from '../services/settings.service';
 import { of } from 'rxjs';
 
 export class MockFavoritesService {
@@ -36,9 +37,9 @@ export class MockFavoritesService {
 }
 
 export class MockSettingsService {
-  private _settings = {
-    playbackMode: 'mp4' as const,
-    quality: 'hd' as const,
+  private _settings: AppSettings = {
+    playbackMode: 'mp4',
+    quality: 'hd',
     rateLimitEnabled: true,
     storiesNavigation: true,
     gridAutoplay: true,
@@ -48,11 +49,11 @@ export class MockSettingsService {
 
   get = () => this._settings;
 
-  update = (partial: Partial<typeof this._settings>): void => {
+  update = (partial: Partial<AppSettings>): void => {
     this._settings = { ...this._settings, ...partial };
   };
 
-  setSettings(settings: typeof this._settings) {
+  setSettings(settings: AppSettings) {
     this._settings = { ...settings };
   }
 }

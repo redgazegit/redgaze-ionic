@@ -87,3 +87,7 @@ ng-serve.log*
 .mcp.json
 .agents/
 .opencode/skills/
+
+# Cloudflare Wrangler (build artifacts, local cache)
+.wrangler/
+_worker.bundle

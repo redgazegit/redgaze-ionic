@@ -19,16 +19,25 @@ vi.mock('plyr', () => ({
 }));
 
 let observerCallback: IntersectionObserverCallback | null;
+let playObserverCallback: IntersectionObserverCallback | null;
 
 class MockObserver {
+  static instances: MockObserver[] = [];
   callback: IntersectionObserverCallback;
-  constructor(cb: IntersectionObserverCallback) {
+  options?: IntersectionObserverInit;
+  observe = vi.fn();
+  unobserve = vi.fn();
+  disconnect = vi.fn();
+  takeRecords = vi.fn((): IntersectionObserverEntry[] => []);
+  constructor(cb: IntersectionObserverCallback, options?: IntersectionObserverInit) {
     this.callback = cb;
-    observerCallback = cb;
-    this.observe = vi.fn();
-    this.unobserve = vi.fn();
-    this.disconnect = vi.fn();
-    this.takeRecords = vi.fn(() => []);
+    this.options = options;
+    MockObserver.instances.push(this);
+    if (MockObserver.instances.length === 1) {
+      observerCallback = cb;
+    } else if (MockObserver.instances.length === 2) {
+      playObserverCallback = cb;
+    }
   }
 }
 vi.stubGlobal('IntersectionObserver', MockObserver as any);
@@ -40,6 +49,9 @@ describe('VideoPlayerComponent', () => {
   let mockVideoState: MockVideoStateService;
 
   beforeEach(async () => {
+    observerCallback = null;
+    playObserverCallback = null;
+    MockObserver.instances = [];
     mockFav = new MockFavoritesService();
     mockApi = new MockRedgifsApiService();
     mockSettings = new MockSettingsService();
@@ -56,6 +68,10 @@ describe('VideoPlayerComponent', () => {
       ],
       schemas: [CUSTOM_ELEMENTS_SCHEMA],
     }).compileComponents();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   afterAll(() => {
@@ -88,6 +104,10 @@ describe('VideoPlayerComponent', () => {
     const fixture = createComponent(gif);
     fixture.detectChanges();
 
+    expect(fixture.componentInstance.posterSrc()).toBe('');
+    expect(fixture.componentInstance.videoSrc()).toBe('');
+
+    observerCallback!([{ isIntersecting: true, intersectionRatio: 0 } as IntersectionObserverEntry], null! as any);
     expect(fixture.componentInstance.posterSrc()).toBe('/cdn/thumb.jpg');
     expect(fixture.componentInstance.videoSrc()).toBe('/cdn/test-hd.mp4');
   });
@@ -103,6 +123,8 @@ describe('VideoPlayerComponent', () => {
     mockSettings.setSettings({ playbackMode: 'mp4', quality: 'sd', rateLimitEnabled: true, storiesNavigation: true, gridAutoplay: true });
     const fixture = createComponent(gif);
     fixture.detectChanges();
+    expect(fixture.componentInstance.videoSrc()).toBe('');
+    observerCallback!([{ isIntersecting: true, intersectionRatio: 0 } as IntersectionObserverEntry], null! as any);
     expect(fixture.componentInstance.videoSrc()).toBe('/cdn/sd.mp4');
   });
 
@@ -110,7 +132,7 @@ describe('VideoPlayerComponent', () => {
     const gif = fakeGif({ id: 'video-fav-check' });
     vi.spyOn(mockFav, 'isFavorite').mockReturnValue(true);
     const fixture = createComponent(gif);
-    expect(fixture.componentInstance.isFav).toBe(true);
+    expect(fixture.componentInstance.isFav()).toBe(true);
   });
 
   it('should toggle favorite', () => {
@@ -147,7 +169,7 @@ describe('VideoPlayerComponent', () => {
       origCreateElement = document.createElement;
       document.createElement = vi.fn().mockReturnValue(anchor as any);
       fixture.componentInstance.download();
-      expect(anchor.href).toBe('/cdn/dl.mp4');
+      expect(anchor.href).toBe('https://media.redgifs.com/dl.mp4');
       expect(anchor.download).toBe('dl-test.mp4');
       expect(anchor.click).toHaveBeenCalledOnce();
     });
@@ -164,12 +186,14 @@ describe('VideoPlayerComponent', () => {
       const fixture = createComponent();
       fixture.detectChanges();
       const page = fixture.componentInstance as any;
+      page.sourceAttached = true;
+      page.player = { destroy: vi.fn(), on: vi.fn(), play: vi.fn().mockResolvedValue(undefined), pause: vi.fn() };
       page.blobUrls = ['blob:http://test1', 'blob:http://test2'];
       const timer = setTimeout(() => {}, 10000);
       page.playTimer = timer;
 
       vi.spyOn(globalThis, 'clearTimeout');
-      vi.spyOn(URL, 'revokeObjectURL');
+      const abortSpy = vi.spyOn(page.mediaProxy, 'abortProgressiveStream');
       vi.spyOn(mockVideoState, 'onPause');
 
       fixture.destroy();
@@ -177,7 +201,9 @@ describe('VideoPlayerComponent', () => {
       expect(globalThis.clearTimeout).toHaveBeenCalledWith(timer);
       expect(page.player.destroy).toHaveBeenCalled();
       expect(mockVideoState.onPause).toHaveBeenCalled();
-      expect(URL.revokeObjectURL).toHaveBeenCalledTimes(2);
+      expect(abortSpy).toHaveBeenCalledTimes(2);
+      expect(abortSpy).toHaveBeenCalledWith('blob:http://test1');
+      expect(abortSpy).toHaveBeenCalledWith('blob:http://test2');
     });
   });
 
@@ -205,7 +231,7 @@ describe('VideoPlayerComponent', () => {
   });
 
   describe('Plyr ready event', () => {
-    function getReadyCallback(fixture: any): Function {
+    function getReadyCallback(fixture: any): Function | null {
       const page = fixture.componentInstance as any;
       const calls = page.player.on.mock.calls;
       const readyCall = calls.find((args: any[]) => args[0] === 'ready');
@@ -215,20 +241,26 @@ describe('VideoPlayerComponent', () => {
     it('should auto-play on ready when element is visible', () => {
       const fixture = createComponent();
       fixture.detectChanges();
+      observerCallback!([{ isIntersecting: true, intersectionRatio: 0.5 } as IntersectionObserverEntry], null! as any);
+      fixture.detectChanges();
       const cb = getReadyCallback(fixture);
       expect(cb).toBeTruthy();
-      vi.spyOn(fixture.componentInstance as any, 'isElementVisible').mockReturnValue(true);
-      cb();
-      expect(fixture.componentInstance['player'].play).toHaveBeenCalled();
+      const page = fixture.componentInstance as any;
+      page.sourceAttached = true;
+      vi.spyOn(page, 'isElementVisible').mockReturnValue(true);
+      cb!();
+      expect(page.player.play).toHaveBeenCalled();
     });
 
     it('should not auto-play on ready when element is not visible', () => {
       const fixture = createComponent();
       fixture.detectChanges();
+      observerCallback!([{ isIntersecting: true, intersectionRatio: 0.5 } as IntersectionObserverEntry], null! as any);
+      fixture.detectChanges();
       const cb = getReadyCallback(fixture);
       vi.spyOn(fixture.componentInstance as any, 'isElementVisible').mockReturnValue(false);
-      cb();
-      expect(fixture.componentInstance['player'].play).not.toHaveBeenCalled();
+      cb!();
+      expect(fixture.componentInstance['player']!.play).not.toHaveBeenCalled();
     });
   });
 
@@ -256,6 +288,37 @@ describe('VideoPlayerComponent', () => {
       expect(fixture.componentInstance.posterSrc()).toBe('/cdn/thumb.jpg');
       expect(fixture.componentInstance.videoSrc()).toBe('/cdn/hd.mp4');
     });
+
+    it('should swap the source when the gif input changes', async () => {
+      const gifA = fakeGif({
+        id: 'story-a',
+        urls: { sd: '', hd: 'https://media.redgifs.com/a-hd.mp4', thumbnail: 'https://media.redgifs.com/a.jpg' },
+      });
+      const gifB = fakeGif({
+        id: 'story-b',
+        urls: { sd: '', hd: 'https://media.redgifs.com/b-hd.mp4', thumbnail: 'https://media.redgifs.com/b.jpg' },
+      });
+
+      const playedSrc: Array<string | null> = [];
+      vi.spyOn(HTMLMediaElement.prototype, 'play').mockImplementation(function (this: HTMLMediaElement) {
+        playedSrc.push(this.getAttribute('src'));
+        return Promise.resolve();
+      });
+
+      const fixture = createComponent(gifA, true);
+      fixture.detectChanges();
+      await fixture.whenStable();
+      expect(fixture.componentInstance.videoSrc()).toBe('/cdn/a-hd.mp4');
+      expect(playedSrc.at(-1)).toBe('/cdn/a-hd.mp4');
+      expect(fixture.componentInstance['videoRef']()!.nativeElement.muted).toBe(true);
+
+      fixture.componentRef.setInput('gif', gifB);
+      fixture.detectChanges();
+      await fixture.whenStable();
+      expect(fixture.componentInstance.videoSrc()).toBe('/cdn/b-hd.mp4');
+      expect(fixture.componentInstance.posterSrc()).toBe('/cdn/b.jpg');
+      expect(playedSrc.at(-1)).toBe('/cdn/b-hd.mp4');
+    });
   });
 
   describe('IntersectionObserver', () => {
@@ -274,18 +337,20 @@ describe('VideoPlayerComponent', () => {
     it('should pause when not intersecting', () => {
       const fixture = createComponent();
       fixture.detectChanges();
+      observerCallback!([{ isIntersecting: true, intersectionRatio: 0.5 } as IntersectionObserverEntry], null! as any);
       vi.spyOn(mockVideoState, 'onPause');
       expect(observerCallback).toBeTruthy();
-      observerCallback!([{ isIntersecting: false } as IntersectionObserverEntry], null! as any);
+      observerCallback!([{ isIntersecting: false, intersectionRatio: 0 } as IntersectionObserverEntry], null! as any);
       expect(mockVideoState.onPause).toHaveBeenCalled();
       expect(getPlayer(fixture).pause).toHaveBeenCalled();
     });
 
-    it('should play after 400ms when intersecting and allowed', () => {
+    it('should play after 400ms when inside the play zone and allowed', () => {
       const fixture = createComponent();
       fixture.detectChanges();
+      observerCallback!([{ isIntersecting: true, intersectionRatio: 0 } as IntersectionObserverEntry], null! as any);
       vi.spyOn(mockVideoState, 'requestPlay').mockReturnValue(true);
-      observerCallback!([{ isIntersecting: true } as IntersectionObserverEntry], null! as any);
+      playObserverCallback!([{ isIntersecting: true, intersectionRatio: 0.5 } as IntersectionObserverEntry], null! as any);
       vi.advanceTimersByTime(400);
       expect(mockVideoState.requestPlay).toHaveBeenCalled();
       expect(getPlayer(fixture).play).toHaveBeenCalled();
@@ -294,10 +359,78 @@ describe('VideoPlayerComponent', () => {
     it('should not play after 400ms when requestPlay returns false', () => {
       const fixture = createComponent();
       fixture.detectChanges();
+      observerCallback!([{ isIntersecting: true, intersectionRatio: 0 } as IntersectionObserverEntry], null! as any);
       vi.spyOn(mockVideoState, 'requestPlay').mockReturnValue(false);
-      observerCallback!([{ isIntersecting: true } as IntersectionObserverEntry], null! as any);
+      playObserverCallback!([{ isIntersecting: true, intersectionRatio: 0.5 } as IntersectionObserverEntry], null! as any);
       vi.advanceTimersByTime(400);
       expect(mockVideoState.requestPlay).toHaveBeenCalled();
+      expect(getPlayer(fixture).play).not.toHaveBeenCalled();
+    });
+
+    it('should pause when it leaves the play zone', () => {
+      const fixture = createComponent();
+      fixture.detectChanges();
+      observerCallback!([{ isIntersecting: true, intersectionRatio: 0 } as IntersectionObserverEntry], null! as any);
+      playObserverCallback!([{ isIntersecting: true, intersectionRatio: 0.5 } as IntersectionObserverEntry], null! as any);
+      vi.spyOn(mockVideoState, 'onPause');
+      playObserverCallback!([{ isIntersecting: false, intersectionRatio: 0 } as IntersectionObserverEntry], null! as any);
+      expect(mockVideoState.onPause).toHaveBeenCalled();
+      expect(getPlayer(fixture).pause).toHaveBeenCalled();
+    });
+
+    it('should preload with a 400px margin and play against the central viewport band', () => {
+      const fixture = createComponent();
+      fixture.detectChanges();
+      expect(MockObserver.instances).toHaveLength(2);
+      expect(MockObserver.instances[0].options?.rootMargin).toBe('400px 0px');
+      expect(MockObserver.instances[1].options?.rootMargin).toBe('-15% 0px -15% 0px');
+    });
+  });
+
+  describe('deferred source attachment', () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    function getPlayer(fixture: any) {
+      return fixture.componentInstance['player'];
+    }
+
+    it('should NOT set videoSrc or posterSrc on init', () => {
+      const fixture = createComponent();
+      fixture.detectChanges();
+      expect(fixture.componentInstance.videoSrc()).toBe('');
+      expect(fixture.componentInstance.posterSrc()).toBe('');
+    });
+
+    it('should set videoSrc and posterSrc when entering preload zone', () => {
+      const fixture = createComponent();
+      fixture.detectChanges();
+      observerCallback!([{ isIntersecting: true, intersectionRatio: 0 } as IntersectionObserverEntry], null! as any);
+      expect(fixture.componentInstance.videoSrc()).toBeTruthy();
+      expect(fixture.componentInstance.posterSrc()).toBeTruthy();
+    });
+
+    it('should clear videoSrc and posterSrc when exiting viewport zone', () => {
+      const fixture = createComponent();
+      fixture.detectChanges();
+      observerCallback!([{ isIntersecting: true, intersectionRatio: 0 } as IntersectionObserverEntry], null! as any);
+      expect(fixture.componentInstance.videoSrc()).toBeTruthy();
+      observerCallback!([{ isIntersecting: false, intersectionRatio: 0 } as IntersectionObserverEntry], null! as any);
+      expect(fixture.componentInstance.videoSrc()).toBe('');
+      expect(fixture.componentInstance.posterSrc()).toBe('');
+    });
+
+    it('should NOT play video in preload zone (intersectionRatio between 0 and 0.3)', () => {
+      const fixture = createComponent();
+      fixture.detectChanges();
+      vi.spyOn(mockVideoState, 'requestPlay').mockReturnValue(true);
+      observerCallback!([{ isIntersecting: true, intersectionRatio: 0 } as IntersectionObserverEntry], null! as any);
+      vi.advanceTimersByTime(400);
       expect(getPlayer(fixture).play).not.toHaveBeenCalled();
     });
   });

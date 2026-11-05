@@ -33,7 +33,7 @@ export class WatchPage implements OnInit, OnDestroy {
   api = inject(RedgifsApiService);
   private mediaProxy = inject(MediaProxyService);
   favService = inject(FavoritesService);
-  private settings = inject(SettingsService);
+  protected settings = inject(SettingsService);
   private videoState = inject(VideoStateService);
 
 

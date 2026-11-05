@@ -31,10 +31,19 @@ export class VideoPlayerComponent implements OnDestroy {
   private readonly videoRef = viewChild<ElementRef<HTMLVideoElement>>('videoPlayer');
 
   private player?: Plyr;
-  private observer?: IntersectionObserver;
+  private preloadObserver?: IntersectionObserver;
+  private playObserver?: IntersectionObserver;
   private playTimer?: ReturnType<typeof setTimeout>;
   private videoState = inject(VideoStateService);
   private blobUrls: string[] = [];
+
+  private sourceAttached = false;
+  private sourceGeneration = 0;
+  private sourceGifId: string | null = null;
+  private inPlayZone = false;
+  private playRetries = 0;
+  readonly sourceReady = signal(false);
+  readonly preloadStrategy = signal<'none' | 'metadata'>('none');
 
   readonly videoSrc = signal('');
   readonly posterSrc = signal('');
@@ -46,60 +55,68 @@ export class VideoPlayerComponent implements OnDestroy {
       if (!videoEl || !gif) return;
 
       const isStories = this.storiesMode();
-      const prefHd = this.settings.get().quality === 'hd';
-      const rawUrl = prefHd ? (gif.urls.hd || gif.urls.sd || '') : (gif.urls.sd || gif.urls.hd || '');
-      const thumb = gif.urls.thumbnail || '';
-
-      setTimeout(() => this.setMediaSources(rawUrl, thumb));
 
       if (isStories) {
-        videoEl.play().catch(() => {});
+        if (this.sourceGifId !== gif.id) {
+          this.releaseSource();
+          this.sourceGifId = gif.id;
+        }
+        this.ensureSource();
         return;
       }
 
       if (this.player) return;
 
-      this.player = new Plyr(videoEl, {
-        controls: ['play', 'progress', 'current-time', 'mute', 'fullscreen'],
-        resetOnEnd: true,
-        hideControls: false,
-        clickToPlay: true,
-        iconUrl: '/assets/plyr/plyr.svg',
-      });
+      this.preloadObserver?.disconnect();
+      this.playObserver?.disconnect();
 
-      if (Capacitor.isNativePlatform()) {
-        this.player.on('enterfullscreen', () => {
-          console.log('[VP] Plyr enterfullscreen');
-          SystemBars.hide().catch(() => {});
-        });
-        this.player.on('exitfullscreen', () => {
-          console.log('[VP] Plyr exitfullscreen');
-          SystemBars.show().catch(() => {});
-        });
-      }
+      this.preloadObserver = new IntersectionObserver(entries => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            this.ensureSource();
+            if (!this.player) {
+              this.createPlyr(videoEl);
+            }
+            return;
+          }
 
-      this.observer = new IntersectionObserver(entries => {
+          clearTimeout(this.playTimer);
+          this.inPlayZone = false;
+          this.videoState.onPause(this.gif().id);
+          this.player?.pause();
+          this.releaseSource();
+        });
+      }, { rootMargin: '400px 0px', threshold: 0 });
+      this.preloadObserver.observe(videoEl);
+
+      this.playObserver = new IntersectionObserver(entries => {
         entries.forEach(entry => {
           if (!this.player || document.fullscreenElement) return;
-          clearTimeout(this.playTimer);
-          if (!entry.isIntersecting) {
+
+          if (entry.isIntersecting) {
+            this.ensureSource();
+            this.inPlayZone = true;
+            this.playRetries = 0;
+            this.schedulePlay();
+          } else {
+            this.inPlayZone = false;
+            clearTimeout(this.playTimer);
             this.videoState.onPause(this.gif().id);
             this.player.pause();
-          } else {
-            this.playTimer = setTimeout(() => {
-              if (this.player && this.videoState.requestPlay(this.gif().id)) {
-                this.player.play().catch(() => {});
-              }
-            }, 400);
           }
         });
-      }, { threshold: 0.3 });
-      this.observer.observe(videoEl);
+      }, { rootMargin: '-15% 0px -15% 0px', threshold: [0, 0.05, 0.1, 0.2, 0.3, 0.5, 0.75, 1] });
+      this.playObserver.observe(videoEl);
+    });
 
-      this.player.on('ready', () => {
-        if (videoEl && this.isElementVisible(videoEl)) {
-          this.player?.play().catch(() => {});
-        }
+    effect(() => {
+      if (!this.storiesMode() || !this.sourceReady()) return;
+      const videoEl = this.videoRef()?.nativeElement;
+      const src = this.videoSrc();
+      if (!videoEl || !src) return;
+      videoEl.muted = true;
+      queueMicrotask(() => {
+        if (videoEl.isConnected) videoEl.play().catch(() => {});
       });
     });
 
@@ -111,17 +128,99 @@ export class VideoPlayerComponent implements OnDestroy {
     });
   }
 
-  private setMediaSources(rawUrl: string, thumb: string): void {
+  private schedulePlay(): void {
+    clearTimeout(this.playTimer);
+    this.playTimer = setTimeout(() => {
+      if (!this.inPlayZone || !this.player) return;
+      if (this.videoState.requestPlay(this.gif().id)) {
+        this.playRetries = 0;
+        this.player.play().catch(() => {});
+      } else if (this.playRetries++ < 10) {
+        this.schedulePlay();
+      }
+    }, 400);
+  }
+
+  private setMediaSources(rawUrl: string, thumb: string, gen: number): void {
     if (Capacitor.isNativePlatform()) {
-      this.mediaProxy.proxyImage(thumb).then(url => this.posterSrc.set(url));
-      this.mediaProxy.proxyVideoProgressive(rawUrl).then(url => {
-        this.videoSrc.set(url);
-        this.blobUrls.push(url);
+      Promise.all([
+        this.mediaProxy.proxyImage(thumb),
+        this.mediaProxy.proxyVideoProgressive(rawUrl),
+      ]).then(([posterUrl, videoUrl]) => {
+        if (this.sourceAttached && gen === this.sourceGeneration) {
+          this.posterSrc.set(posterUrl);
+          this.videoSrc.set(videoUrl);
+          this.blobUrls.push(videoUrl);
+          this.sourceReady.set(true);
+        } else if (videoUrl.startsWith('blob:')) {
+          this.mediaProxy.abortProgressiveStream(videoUrl);
+        }
       });
     } else {
       this.posterSrc.set(this.api.proxyUrl(thumb));
       this.videoSrc.set(this.api.proxyUrl(rawUrl));
+      this.sourceReady.set(true);
     }
+  }
+
+  private ensureSource(): void {
+    if (this.sourceAttached) return;
+    this.sourceAttached = true;
+    this.sourceReady.set(false);
+    this.preloadStrategy.set('metadata');
+    const gif = this.gif();
+    if (!gif) { this.sourceAttached = false; return; }
+    const prefHd = this.settings.get().quality === 'hd';
+    const rawUrl = prefHd ? (gif.urls.hd || gif.urls.sd || '') : (gif.urls.sd || gif.urls.hd || '');
+    const thumb = gif.urls.thumbnail || '';
+    this.sourceGifId = gif.id;
+    this.setMediaSources(rawUrl, thumb, this.sourceGeneration);
+  }
+
+  private releaseSource(): void {
+    if (!this.sourceAttached) return;
+    this.sourceAttached = false;
+    this.sourceReady.set(false);
+    this.sourceGeneration++;
+    this.preloadStrategy.set('none');
+    this.videoSrc.set('');
+    this.posterSrc.set('');
+    const videoEl = this.videoRef()?.nativeElement;
+    if (videoEl) {
+      videoEl.pause?.();
+      videoEl.removeAttribute('src');
+      if (typeof videoEl.load === 'function') videoEl.load();
+    }
+    const urls = this.blobUrls;
+    this.blobUrls = [];
+    urls.forEach(url => this.mediaProxy.abortProgressiveStream(url));
+  }
+
+  private createPlyr(videoEl: HTMLVideoElement): void {
+    this.player = new Plyr(videoEl, {
+      controls: ['play', 'progress', 'current-time', 'mute', 'fullscreen'],
+      resetOnEnd: true,
+      hideControls: false,
+      clickToPlay: true,
+      iconUrl: '/assets/plyr/plyr.svg',
+    });
+
+    if (Capacitor.isNativePlatform()) {
+      this.player.on('enterfullscreen', () => {
+        SystemBars.hide().catch(() => {});
+      });
+      this.player.on('exitfullscreen', () => {
+        SystemBars.show().catch(() => {});
+      });
+    }
+
+    this.player.on('ready', () => {
+      if (this.sourceAttached && videoEl && this.isElementVisible(videoEl)) {
+        if (this.videoState.requestPlay(this.gif().id)) {
+          this.player?.play().catch(() => {});
+        }
+      }
+    });
   }
 
   private isElementVisible(el: HTMLElement): boolean {
@@ -132,10 +231,12 @@ export class VideoPlayerComponent implements OnDestroy {
 
   ngOnDestroy(): void {
     clearTimeout(this.playTimer);
-    this.observer?.disconnect();
+    this.inPlayZone = false;
+    this.preloadObserver?.disconnect();
+    this.playObserver?.disconnect();
     this.player?.destroy();
     this.videoState.onPause(this.gif()?.id || '');
-    this.blobUrls.forEach(url => this.mediaProxy.abortProgressiveStream(url));
+    this.releaseSource();
   }
 
   readonly isFav = computed(() => this.favService.isFavorite(this.gif()?.id || ''));
