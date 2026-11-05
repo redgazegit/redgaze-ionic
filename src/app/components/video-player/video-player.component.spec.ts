@@ -19,18 +19,23 @@ vi.mock('plyr', () => ({
 }));
 
 let observerCallback: IntersectionObserverCallback | null;
+let playObserverCallback: IntersectionObserverCallback | null;
 
 class MockObserver {
   callback: IntersectionObserverCallback;
   options?: IntersectionObserverInit;
+  observe = vi.fn();
+  unobserve = vi.fn();
+  disconnect = vi.fn();
+  takeRecords = vi.fn((): IntersectionObserverEntry[] => []);
   constructor(cb: IntersectionObserverCallback, options?: IntersectionObserverInit) {
     this.callback = cb;
     this.options = options;
-    observerCallback = cb;
-    this.observe = vi.fn();
-    this.unobserve = vi.fn();
-    this.disconnect = vi.fn();
-    this.takeRecords = vi.fn(() => []);
+    if (!observerCallback) {
+      observerCallback = cb;
+    } else {
+      playObserverCallback = cb;
+    }
   }
 }
 vi.stubGlobal('IntersectionObserver', MockObserver as any);
@@ -42,6 +47,8 @@ describe('VideoPlayerComponent', () => {
   let mockVideoState: MockVideoStateService;
 
   beforeEach(async () => {
+    observerCallback = null;
+    playObserverCallback = null;
     mockFav = new MockFavoritesService();
     mockApi = new MockRedgifsApiService();
     mockSettings = new MockSettingsService();
@@ -217,7 +224,7 @@ describe('VideoPlayerComponent', () => {
   });
 
   describe('Plyr ready event', () => {
-    function getReadyCallback(fixture: any): Function {
+    function getReadyCallback(fixture: any): Function | null {
       const page = fixture.componentInstance as any;
       const calls = page.player.on.mock.calls;
       const readyCall = calls.find((args: any[]) => args[0] === 'ready');
@@ -234,7 +241,7 @@ describe('VideoPlayerComponent', () => {
       const page = fixture.componentInstance as any;
       page.sourceAttached = true;
       vi.spyOn(page, 'isElementVisible').mockReturnValue(true);
-      cb();
+      cb!();
       expect(page.player.play).toHaveBeenCalled();
     });
 
@@ -245,8 +252,8 @@ describe('VideoPlayerComponent', () => {
       fixture.detectChanges();
       const cb = getReadyCallback(fixture);
       vi.spyOn(fixture.componentInstance as any, 'isElementVisible').mockReturnValue(false);
-      cb();
-      expect(fixture.componentInstance['player'].play).not.toHaveBeenCalled();
+      cb!();
+      expect(fixture.componentInstance['player']!.play).not.toHaveBeenCalled();
     });
   });
 
@@ -274,6 +281,26 @@ describe('VideoPlayerComponent', () => {
       expect(fixture.componentInstance.posterSrc()).toBe('/cdn/thumb.jpg');
       expect(fixture.componentInstance.videoSrc()).toBe('/cdn/hd.mp4');
     });
+
+    it('should swap the source when the gif input changes', () => {
+      const gifA = fakeGif({
+        id: 'story-a',
+        urls: { sd: '', hd: 'https://media.redgifs.com/a-hd.mp4', thumbnail: 'https://media.redgifs.com/a.jpg' },
+      });
+      const gifB = fakeGif({
+        id: 'story-b',
+        urls: { sd: '', hd: 'https://media.redgifs.com/b-hd.mp4', thumbnail: 'https://media.redgifs.com/b.jpg' },
+      });
+
+      const fixture = createComponent(gifA, true);
+      fixture.detectChanges();
+      expect(fixture.componentInstance.videoSrc()).toBe('/cdn/a-hd.mp4');
+
+      fixture.componentRef.setInput('gif', gifB);
+      fixture.detectChanges();
+      expect(fixture.componentInstance.videoSrc()).toBe('/cdn/b-hd.mp4');
+      expect(fixture.componentInstance.posterSrc()).toBe('/cdn/b.jpg');
+    });
   });
 
   describe('IntersectionObserver', () => {
@@ -300,11 +327,12 @@ describe('VideoPlayerComponent', () => {
       expect(getPlayer(fixture).pause).toHaveBeenCalled();
     });
 
-    it('should play after 400ms when intersecting and allowed', () => {
+    it('should play after 400ms when at least 30% visible and allowed', () => {
       const fixture = createComponent();
       fixture.detectChanges();
+      observerCallback!([{ isIntersecting: true, intersectionRatio: 0 } as IntersectionObserverEntry], null! as any);
       vi.spyOn(mockVideoState, 'requestPlay').mockReturnValue(true);
-      observerCallback!([{ isIntersecting: true, intersectionRatio: 0.5 } as IntersectionObserverEntry], null! as any);
+      playObserverCallback!([{ isIntersecting: true, intersectionRatio: 0.5 } as IntersectionObserverEntry], null! as any);
       vi.advanceTimersByTime(400);
       expect(mockVideoState.requestPlay).toHaveBeenCalled();
       expect(getPlayer(fixture).play).toHaveBeenCalled();
@@ -313,11 +341,22 @@ describe('VideoPlayerComponent', () => {
     it('should not play after 400ms when requestPlay returns false', () => {
       const fixture = createComponent();
       fixture.detectChanges();
+      observerCallback!([{ isIntersecting: true, intersectionRatio: 0 } as IntersectionObserverEntry], null! as any);
       vi.spyOn(mockVideoState, 'requestPlay').mockReturnValue(false);
-      observerCallback!([{ isIntersecting: true, intersectionRatio: 0.5 } as IntersectionObserverEntry], null! as any);
+      playObserverCallback!([{ isIntersecting: true, intersectionRatio: 0.5 } as IntersectionObserverEntry], null! as any);
       vi.advanceTimersByTime(400);
       expect(mockVideoState.requestPlay).toHaveBeenCalled();
       expect(getPlayer(fixture).play).not.toHaveBeenCalled();
+    });
+
+    it('should pause when the visible ratio drops below 30%', () => {
+      const fixture = createComponent();
+      fixture.detectChanges();
+      observerCallback!([{ isIntersecting: true, intersectionRatio: 0 } as IntersectionObserverEntry], null! as any);
+      vi.spyOn(mockVideoState, 'onPause');
+      playObserverCallback!([{ isIntersecting: true, intersectionRatio: 0.1 } as IntersectionObserverEntry], null! as any);
+      expect(mockVideoState.onPause).toHaveBeenCalled();
+      expect(getPlayer(fixture).pause).toHaveBeenCalled();
     });
   });
 

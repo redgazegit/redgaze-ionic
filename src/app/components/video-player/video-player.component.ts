@@ -31,15 +31,17 @@ export class VideoPlayerComponent implements OnDestroy {
   private readonly videoRef = viewChild<ElementRef<HTMLVideoElement>>('videoPlayer');
 
   private player?: Plyr;
-  private observer?: IntersectionObserver;
+  private preloadObserver?: IntersectionObserver;
+  private playObserver?: IntersectionObserver;
   private playTimer?: ReturnType<typeof setTimeout>;
   private videoState = inject(VideoStateService);
   private blobUrls: string[] = [];
 
   private sourceAttached = false;
   private sourceGeneration = 0;
+  private sourceGifId: string | null = null;
   readonly sourceReady = signal(false);
-  readonly preloadStrategy = signal<'none' | 'metadata' | 'auto'>('none');
+  readonly preloadStrategy = signal<'none' | 'metadata'>('none');
 
   readonly videoSrc = signal('');
   readonly posterSrc = signal('');
@@ -53,6 +55,10 @@ export class VideoPlayerComponent implements OnDestroy {
       const isStories = this.storiesMode();
 
       if (isStories) {
+        if (this.sourceGifId !== gif.id) {
+          this.releaseSource();
+          this.sourceGifId = gif.id;
+        }
         this.ensureSource();
         videoEl.play().catch(() => {});
         return;
@@ -60,35 +66,47 @@ export class VideoPlayerComponent implements OnDestroy {
 
       if (this.player) return;
 
-      this.observer = new IntersectionObserver(entries => {
+      this.preloadObserver?.disconnect();
+      this.playObserver?.disconnect();
+
+      this.preloadObserver = new IntersectionObserver(entries => {
         entries.forEach(entry => {
-          if (!this.player && entry.isIntersecting) {
+          if (entry.isIntersecting) {
             this.ensureSource();
-            if (this.videoSrc()) videoEl.src = this.videoSrc();
-            this.createPlyr(videoEl);
+            if (!this.player) {
+              if (this.videoSrc()) videoEl.src = this.videoSrc();
+              this.createPlyr(videoEl);
+            }
+            return;
           }
 
+          clearTimeout(this.playTimer);
+          this.videoState.onPause(this.gif().id);
+          this.player?.pause();
+          this.releaseSource();
+        });
+      }, { rootMargin: '400px 0px', threshold: 0 });
+      this.preloadObserver.observe(videoEl);
+
+      this.playObserver = new IntersectionObserver(entries => {
+        entries.forEach(entry => {
           if (!this.player || document.fullscreenElement) return;
           clearTimeout(this.playTimer);
-          if (entry.intersectionRatio >= 0.3) {
+
+          if (entry.isIntersecting && entry.intersectionRatio >= 0.3) {
             this.ensureSource();
             this.playTimer = setTimeout(() => {
               if (this.player && this.videoState.requestPlay(this.gif().id)) {
                 this.player.play().catch(() => {});
               }
             }, 400);
-          } else if (entry.isIntersecting) {
-            this.ensureSource();
-            this.videoState.onPause(this.gif().id);
-            this.player.pause();
           } else {
             this.videoState.onPause(this.gif().id);
             this.player.pause();
-            this.releaseSource();
           }
         });
-      }, { rootMargin: '400px 0px', threshold: [0, 0.3] });
-      this.observer.observe(videoEl);
+      }, { threshold: [0, 0.3, 0.5, 0.75, 1] });
+      this.playObserver.observe(videoEl);
     });
 
     effect(() => {
@@ -110,6 +128,8 @@ export class VideoPlayerComponent implements OnDestroy {
           this.videoSrc.set(videoUrl);
           this.blobUrls.push(videoUrl);
           this.sourceReady.set(true);
+        } else if (videoUrl.startsWith('blob:')) {
+          this.mediaProxy.abortProgressiveStream(videoUrl);
         }
       });
     } else {
@@ -129,6 +149,7 @@ export class VideoPlayerComponent implements OnDestroy {
     const prefHd = this.settings.get().quality === 'hd';
     const rawUrl = prefHd ? (gif.urls.hd || gif.urls.sd || '') : (gif.urls.sd || gif.urls.hd || '');
     const thumb = gif.urls.thumbnail || '';
+    this.sourceGifId = gif.id;
     this.setMediaSources(rawUrl, thumb, this.sourceGeneration);
   }
 
@@ -140,6 +161,12 @@ export class VideoPlayerComponent implements OnDestroy {
     this.preloadStrategy.set('none');
     this.videoSrc.set('');
     this.posterSrc.set('');
+    const videoEl = this.videoRef()?.nativeElement;
+    if (videoEl) {
+      videoEl.pause?.();
+      videoEl.removeAttribute('src');
+      if (typeof videoEl.load === 'function') videoEl.load();
+    }
     const urls = this.blobUrls;
     this.blobUrls = [];
     urls.forEach(url => this.mediaProxy.abortProgressiveStream(url));
@@ -180,7 +207,8 @@ export class VideoPlayerComponent implements OnDestroy {
 
   ngOnDestroy(): void {
     clearTimeout(this.playTimer);
-    this.observer?.disconnect();
+    this.preloadObserver?.disconnect();
+    this.playObserver?.disconnect();
     this.player?.destroy();
     this.videoState.onPause(this.gif()?.id || '');
     this.releaseSource();
