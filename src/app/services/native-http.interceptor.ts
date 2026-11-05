@@ -1,4 +1,4 @@
-import { HttpEvent, HttpInterceptorFn, HttpRequest, HttpResponse } from '@angular/common/http';
+import { HttpErrorResponse, HttpEvent, HttpHeaders, HttpInterceptorFn, HttpRequest, HttpResponse } from '@angular/common/http';
 import { Capacitor } from '@capacitor/core';
 import { CapacitorHttp } from '@capacitor/core';
 import { from, Observable } from 'rxjs';
@@ -26,6 +26,8 @@ async function handleNative(req: HttpRequest<unknown>): Promise<HttpEvent<unknow
     }
   }
 
+  const arrayBufferResponse = req.responseType === 'arraybuffer';
+
   console.log('[NativeHttp] sending via CapacitorHttp:', req.method, req.url);
 
   let res;
@@ -35,6 +37,7 @@ async function handleNative(req: HttpRequest<unknown>): Promise<HttpEvent<unknow
       method: req.method,
       headers,
       data,
+      ...(arrayBufferResponse ? { responseType: 'arraybuffer' as const } : {}),
     });
     console.log('[NativeHttp] response:', res.status, typeof res.data);
   } catch (err) {
@@ -42,9 +45,32 @@ async function handleNative(req: HttpRequest<unknown>): Promise<HttpEvent<unknow
     throw err;
   }
 
+  const resHeaders = new HttpHeaders((res.headers ?? {}) as Record<string, string>);
+
+  if (res.status < 200 || res.status >= 300) {
+    throw new HttpErrorResponse({
+      error: res.data,
+      status: res.status,
+      statusText: '',
+      url: req.url,
+      headers: resHeaders,
+    });
+  }
+
   return new HttpResponse({
-    body: res.data,
+    body: arrayBufferResponse && typeof res.data === 'string' ? base64ToArrayBuffer(res.data as string) : res.data,
     status: res.status,
     statusText: '',
+    url: req.url,
+    headers: resHeaders,
   });
+}
+
+function base64ToArrayBuffer(base64: string): ArrayBuffer {
+  const byteChars = atob(base64);
+  const bytes = new Uint8Array(byteChars.length);
+  for (let i = 0; i < byteChars.length; i++) {
+    bytes[i] = byteChars.charCodeAt(i);
+  }
+  return bytes.buffer as ArrayBuffer;
 }

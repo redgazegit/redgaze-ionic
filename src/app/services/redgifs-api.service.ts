@@ -1,13 +1,13 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpHeaders, HttpErrorResponse } from '@angular/common/http';
-import { Observable, from, of, throwError, timer } from 'rxjs';
-import { switchMap, map, tap, catchError, finalize } from 'rxjs/operators';
+import { Observable, of, throwError, firstValueFrom, timer, Subject, ReplaySubject } from 'rxjs';
+import { switchMap, map, tap, catchError, shareReplay, concatMap, ignoreElements, finalize } from 'rxjs/operators';
 import { SettingsService } from './settings.service';
 import { API_CONFIG } from './api-config';
 import {
   Gif, Creator, User, Niche, TagSuggestion,
   SearchResult, CreatorResult, NicheResult, TempToken,
-  ContentViewedEvent, ViewedDurationEvent, RefreshResult, NicheInfo, Tag
+  ContentViewedEvent, ViewedDurationEvent, NicheInfo, Tag
 } from '../models/gif.model';
 
 @Injectable({ providedIn: 'root' })
@@ -20,14 +20,30 @@ export class RedgifsApiService {
   private readonly EXPIRY_KEY = 'redgifs_token_expiry';
   private readonly TOKEN_TTL = 23 * 60 * 60 * 1000;
   private readonly MIN_GAP = 1000;
+  private readonly MAX_RETRIES = 3;
   private token: string | null = null;
   private tokenExpiry = 0;
   private lastRequest = 0;
   private backoffUntil = 0;
   private authInFlight$: Observable<boolean> | null = null;
+  private readonly slotRequests$ = new Subject<ReplaySubject<void>>();
 
   constructor() {
     this.loadToken();
+    this.slotRequests$.pipe(
+      concatMap(request$ => {
+        const now = Date.now();
+        const wait = Math.max(this.backoffUntil - now, this.lastRequest + this.MIN_GAP - now);
+        return (wait > 0 ? timer(wait) : of(0)).pipe(
+          tap(() => {
+            this.lastRequest = Date.now();
+            request$.next();
+            request$.complete();
+          }),
+          ignoreElements(),
+        );
+      }),
+    ).subscribe();
   }
 
   private loadToken(): void {
@@ -54,9 +70,7 @@ export class RedgifsApiService {
   private ensureAuth(): Observable<boolean> {
     if (this.token && Date.now() < this.tokenExpiry) return of(true);
     if (this.authInFlight$) return this.authInFlight$;
-    this.authInFlight$ = this.http.get<TempToken>(`${this.config.baseUrl}/v2/auth/temporary`, {
-      headers: new HttpHeaders({ 'Accept': 'application/json' })
-    }).pipe(
+    this.authInFlight$ = this.requestTempToken().pipe(
       tap(t => {
         this.token = t.token;
         this.tokenExpiry = Date.now() + this.TOKEN_TTL;
@@ -69,36 +83,59 @@ export class RedgifsApiService {
         return throwError(() => new Error('Auth failed'));
       }),
       finalize(() => { this.authInFlight$ = null; }),
+      shareReplay({ bufferSize: 1, refCount: false }),
     );
     return this.authInFlight$;
   }
 
-  private waitForSlot(): Observable<void> {
-    if (!this.settings.get().rateLimitEnabled) return of(undefined);
-    const now = Date.now();
-    const wait = Math.max(this.backoffUntil - now, this.lastRequest + this.MIN_GAP - now);
-    this.lastRequest = Date.now();
-    if (wait <= 0) return of(undefined);
-    return timer(wait).pipe(map(() => undefined));
+  private requestTempToken(retries = 0): Observable<TempToken> {
+    return this.waitForSlot().pipe(
+      switchMap(() => this.http.get<TempToken>(`${this.config.baseUrl}/v2/auth/temporary`, {
+        headers: new HttpHeaders({ 'Accept': 'application/json' })
+      })),
+      catchError(err => {
+        if (err.status === 429 && this.settings.get().rateLimitEnabled && retries < this.MAX_RETRIES) {
+          this.backoffUntil = Date.now() + this.retryAfterMs(err);
+          return this.requestTempToken(retries + 1);
+        }
+        return throwError(() => err);
+      }),
+    );
   }
 
-  private get<T>(path: string): Observable<T> {
+  private waitForSlot(): Observable<void> {
+    if (!this.settings.get().rateLimitEnabled) return of(undefined);
+    const request$ = new ReplaySubject<void>(1);
+    this.slotRequests$.next(request$);
+    return request$.asObservable();
+  }
+
+  private retryAfterMs(err: HttpErrorResponse): number {
+    const seconds = parseInt(err.headers?.get('Retry-After') ?? '5', 10);
+    const secondsWait = Number.isFinite(seconds) ? seconds : 5;
+    return Math.min(secondsWait, 30) * 1000 + 1000;
+  }
+
+  private clearToken(): void {
+    this.token = null;
+    this.tokenExpiry = 0;
+    localStorage.removeItem(this.TOKEN_KEY);
+    localStorage.removeItem(this.EXPIRY_KEY);
+  }
+
+  private get<T>(path: string, retries = 0): Observable<T> {
     return this.ensureAuth().pipe(
       switchMap(() => this.waitForSlot().pipe(
         switchMap(() => this.http.get<T>(`${this.config.baseUrl}${path}`, { headers: this.headers(), observe: 'response' }).pipe(
           map(r => { const b = r.body as any; if (b?.error) throw new HttpErrorResponse({ error: b.error, status: r.status, statusText: r.statusText, url: r.url ?? undefined }); return b as T; }),
           catchError(err => {
-            if (err.status === 429 && this.settings.get().rateLimitEnabled) {
-              const s = parseInt(err.headers?.get('Retry-After') || '5', 10);
-              this.backoffUntil = Date.now() + s * 1000 + 1000;
-              return this.get<T>(path);
+            if (err.status === 429 && this.settings.get().rateLimitEnabled && retries < this.MAX_RETRIES) {
+              this.backoffUntil = Date.now() + this.retryAfterMs(err);
+              return this.get<T>(path, retries + 1);
             }
-            if (err.status === 401 || err.status === 403) {
-              this.token = null;
-              this.tokenExpiry = 0;
-              localStorage.removeItem(this.TOKEN_KEY);
-              localStorage.removeItem(this.EXPIRY_KEY);
-              return this.get<T>(path);
+            if ((err.status === 401 || err.status === 403) && retries < 1) {
+              this.clearToken();
+              return this.get<T>(path, retries + 1);
             }
             return throwError(() => err);
           })
@@ -141,14 +178,6 @@ export class RedgifsApiService {
     return `${this.config.embedDomain}/i/${gif.id}.jpg`;
   }
 
-  getTrendingGifs(): Observable<Gif[]> {
-    return this.get<{ gifs: Gif[] }>('/v2/explore/trending-gifs').pipe(map(r => r.gifs));
-  }
-
-  getTrendingImages(): Observable<Gif[]> {
-    return this.get<{ gifs: Gif[] }>('/v2/explore/trending-images').pipe(map(r => r.gifs));
-  }
-
   getTopThisWeek(count = 30, page = 1, type: 'g' | 'i' = 'g'): Observable<SearchResult> {
     return this.get<{ gifs: Gif[]; page: number; pages: number; total: number }>(
       `/v2/gifs/search?order=top7&count=${count}&page=${page}&type=${type}`
@@ -185,29 +214,19 @@ export class RedgifsApiService {
     ).pipe(map(r => r.items));
   }
 
-  refreshGifs(ids: string[], users?: string[]): Observable<RefreshResult> {
-    let path = `/v2/gifs?ids=${ids.join(',')}`;
-    if (users?.length) path += `&users=${users.join(',')}`;
-    return this.get<RefreshResult>(path);
-  }
-
-  private post<T>(path: string, body: unknown): Observable<T> {
+  private post<T>(path: string, body: unknown, retries = 0): Observable<T> {
     return this.ensureAuth().pipe(
       switchMap(() => this.waitForSlot().pipe(
         switchMap(() => this.http.post<T>(`${this.config.baseUrl}${path}`, body, { headers: this.headers(), observe: 'response' }).pipe(
           map(r => { const b = r.body as any; if (b?.error) throw new HttpErrorResponse({ error: b.error, status: r.status, statusText: r.statusText, url: r.url ?? undefined }); return b as T; }),
           catchError(err => {
-            if (err.status === 429 && this.settings.get().rateLimitEnabled) {
-              const s = parseInt(err.headers?.get('Retry-After') || '5', 10);
-              this.backoffUntil = Date.now() + s * 1000 + 1000;
-              return this.post<T>(path, body);
+            if (err.status === 429 && this.settings.get().rateLimitEnabled && retries < this.MAX_RETRIES) {
+              this.backoffUntil = Date.now() + this.retryAfterMs(err);
+              return this.post<T>(path, body, retries + 1);
             }
-            if (err.status === 401 || err.status === 403) {
-              this.token = null;
-              this.tokenExpiry = 0;
-              localStorage.removeItem(this.TOKEN_KEY);
-              localStorage.removeItem(this.EXPIRY_KEY);
-              return this.post<T>(path, body);
+            if ((err.status === 401 || err.status === 403) && retries < 1) {
+              this.clearToken();
+              return this.post<T>(path, body, retries + 1);
             }
             return throwError(() => err);
           })
@@ -247,12 +266,6 @@ export class RedgifsApiService {
     );
   }
 
-  getTopThisWeekLegacy(): Observable<SearchResult> {
-    return this.get<{ gifs: Gif[]; page: number; pages: number; total: number }>(
-      '/v2/explore/top-this-week'
-    );
-  }
-
   getNicheInfo(nicheId: string): Observable<NicheInfo> {
     return this.get<NicheInfo>(`/v2/niches/${nicheId}`);
   }
@@ -272,9 +285,10 @@ export class RedgifsApiService {
     try { return JSON.parse(localStorage.getItem('redgifs_trending_niches') || '[]'); } catch { return []; }
   }
 
-  getNicheGifs(nicheId: string, order = 'trending', count = 40, page = 1): Observable<SearchResult> {
+  getNicheGifs(nicheId: string, order = '', count = 40, page = 1): Observable<SearchResult> {
+    const orderParam = order ? `&order=${order}` : '';
     return this.get<{ gifs: Gif[]; page: number; pages: number; total: number }>(
-      `/v2/niches/${nicheId}/gifs?order=${order}&count=${count}&page=${page}`
+      `/v2/niches/${nicheId}/gifs?count=${count}&page=${page}${orderParam}`
     );
   }
 
@@ -353,9 +367,8 @@ export class RedgifsApiService {
     return this.token;
   }
 
-  ensureAuthToken(): Promise<string> {
-    return new Promise(resolve => {
-      this.ensureAuth().subscribe(() => resolve(this.token!));
-    });
+  async ensureAuthToken(): Promise<string> {
+    await firstValueFrom(this.ensureAuth());
+    return this.token!;
   }
 }

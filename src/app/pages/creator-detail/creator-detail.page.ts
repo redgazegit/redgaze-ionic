@@ -61,7 +61,7 @@ export class CreatorDetailPage {
     ),
     initialPageParam: 1,
     getNextPageParam: lastPage => lastPage.page < lastPage.pages ? lastPage.page + 1 : undefined,
-    enabled: this.username() !== '',
+    enabled: this.username() !== '' && this.userQuery.isSuccess(),
     staleTime: 1000 * 60 * 2,
   }));
 

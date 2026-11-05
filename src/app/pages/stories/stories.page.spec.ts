@@ -7,16 +7,17 @@ import { FavoritesService } from '../../services/favorites.service';
 import { WatchQueueService } from '../../services/watch-queue.service';
 import { MockRedgifsApiService, MockFavoritesService, MockWatchQueueService } from '../../testing/service-mocks';
 import { testStorage } from '../../../test-setup';
+import { throwError } from 'rxjs';
 
-function makeActivatedRoute() {
-  return { snapshot: { paramMap: { get: () => 'test' } }, paramMap: { subscribe: vi.fn() } } as any as ActivatedRoute;
+function makeActivatedRoute(id = 'gif-1') {
+  return { snapshot: { paramMap: { get: () => id } }, paramMap: { subscribe: vi.fn() } } as any as ActivatedRoute;
 }
 
 describe('StoriesPage', () => {
   let mockFav: MockFavoritesService;
   let mockApi: MockRedgifsApiService;
 
-  async function initModule() {
+  async function initModule(id = 'gif-1') {
     testStorage.clearAll();
     mockFav = new MockFavoritesService();
     mockApi = new MockRedgifsApiService();
@@ -27,7 +28,7 @@ describe('StoriesPage', () => {
       imports: [StoriesPage],
       providers: [
         provideRouter([]),
-        { provide: ActivatedRoute, useValue: makeActivatedRoute() },
+        { provide: ActivatedRoute, useValue: makeActivatedRoute(id) },
         { provide: RedgifsApiService, useValue: mockApi },
         { provide: FavoritesService, useValue: mockFav },
         { provide: WatchQueueService, useValue: wq },
@@ -63,7 +64,7 @@ describe('StoriesPage', () => {
   });
 
   describe('redirect on empty queue', () => {
-    it('should redirect to home when queue is empty and restore fails', async () => {
+    it('should redirect to home when queue is empty, restore fails and the route has no id', async () => {
       testStorage.clearAll();
       const emptyWq = new MockWatchQueueService();
       mockFav = new MockFavoritesService();
@@ -72,7 +73,7 @@ describe('StoriesPage', () => {
         imports: [StoriesPage],
         providers: [
           provideRouter([]),
-          { provide: ActivatedRoute, useValue: makeActivatedRoute() },
+          { provide: ActivatedRoute, useValue: makeActivatedRoute('') },
           { provide: RedgifsApiService, useValue: mockApi },
           { provide: FavoritesService, useValue: mockFav },
           { provide: WatchQueueService, useValue: emptyWq },
@@ -84,6 +85,51 @@ describe('StoriesPage', () => {
       (page as any).router = { navigate: routerSpy };
       page.ngOnInit();
       expect(routerSpy).toHaveBeenCalledWith(['/home']);
+    });
+  });
+
+  describe('direct url loading', () => {
+    beforeEach(async () => await initModule('direct-id'));
+
+    it('should fetch and queue the gif when it is not already current', async () => {
+      const wq = TestBed.inject(WatchQueueService) as MockWatchQueueService;
+      wq.clear();
+      const { page } = createPage();
+      const routerSpy = vi.fn();
+      (page as any).router = { navigate: routerSpy };
+
+      page.ngOnInit();
+      await new Promise(resolve => setTimeout(resolve, 0));
+
+      expect(wq.current()?.id).toBe('direct-id');
+      expect(wq.total()).toBe(1);
+      expect(routerSpy).not.toHaveBeenCalled();
+    });
+
+    it('should redirect to home when the gif cannot be fetched', async () => {
+      const wq = TestBed.inject(WatchQueueService) as MockWatchQueueService;
+      wq.clear();
+      vi.spyOn(mockApi, 'getGif').mockReturnValue(throwError(() => new Error('404')));
+      const { page } = createPage();
+      const routerSpy = vi.fn();
+      (page as any).router = { navigate: routerSpy };
+
+      page.ngOnInit();
+      await new Promise(resolve => setTimeout(resolve, 0));
+
+      expect(routerSpy).toHaveBeenCalledWith(['/home']);
+    });
+
+    it('should not refetch when the queue already has the route gif', async () => {
+      const gifSpy = vi.spyOn(mockApi, 'getGif');
+      const wq = TestBed.inject(WatchQueueService) as MockWatchQueueService;
+      wq.setQueue([{ id: 'direct-id' } as any], 0);
+      const { page } = createPage();
+
+      page.ngOnInit();
+      await new Promise(resolve => setTimeout(resolve, 0));
+
+      expect(gifSpy).not.toHaveBeenCalled();
     });
   });
 

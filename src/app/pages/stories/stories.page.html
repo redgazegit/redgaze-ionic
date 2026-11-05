@@ -24,7 +24,7 @@
   (keydown)="onKeyDown($event)"
   tabindex="0"
 >
-  @if (loading()) {
+  @if (loading() || fetching()) {
     <div class="loading-overlay">
       <ion-spinner name="crescent"></ion-spinner>
     </div>

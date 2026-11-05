@@ -2,6 +2,7 @@ import { CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter, ActivatedRoute } from '@angular/router';
 import { provideAngularQuery, QueryClient } from '@tanstack/angular-query-experimental';
+import { throwError } from 'rxjs';
 import { NicheBrowsePage } from './niche-browse.page';
 import { RedgifsApiService } from '../../services/redgifs-api.service';
 import { SettingsService } from '../../services/settings.service';
@@ -101,10 +102,26 @@ describe('NicheBrowsePage', () => {
     expect(page.gifsQuery.fetchNextPage).not.toHaveBeenCalled();
   });
 
+  it('should render the error surface when the niche feed fails', async () => {
+    initModule(makeActivatedRoute('solo'));
+    await TestBed.compileComponents();
+    (mockApi as any).getNicheGifs = () => throwError(() => new Error('429'));
+    const fixture = TestBed.createComponent(NicheBrowsePage);
+    fixture.componentInstance.ngOnInit();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    await new Promise(resolve => setTimeout(resolve, 0));
+    fixture.detectChanges();
+
+    const text = fixture.nativeElement.textContent;
+    expect(text).toContain('Failed to load niche');
+    expect(text).toContain('Retry');
+  });
+
   describe('onCardClick', () => {
     it('should navigate to /stories with storiesNavigation', () => {
       const page = createPage();
-      vi.spyOn(page as any, 'gifs', 'get').mockReturnValue([fakeGif({ id: 'g1' })]);
+      (page as any).gifs = () => [fakeGif({ id: 'g1' })];
       const navigateSpy = vi.spyOn(router, 'navigate');
       page.onCardClick('g1', 0);
       expect(navigateSpy).toHaveBeenCalledWith(['/stories', 'g1']);
@@ -113,7 +130,7 @@ describe('NicheBrowsePage', () => {
     it('should navigate to /watch without storiesNavigation', () => {
       mockSettings.setSettings({ playbackMode: 'mp4', quality: 'hd', rateLimitEnabled: true, storiesNavigation: false, gridAutoplay: true });
       const page = createPage();
-      vi.spyOn(page as any, 'gifs', 'get').mockReturnValue([fakeGif({ id: 'g1' })]);
+      (page as any).gifs = () => [fakeGif({ id: 'g1' })];
       const navigateSpy = vi.spyOn(router, 'navigate');
       page.onCardClick('g1', 0);
       expect(navigateSpy).toHaveBeenCalledWith(['/watch', 'g1']);

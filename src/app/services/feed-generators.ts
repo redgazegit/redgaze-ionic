@@ -88,7 +88,7 @@ export function nicheFeedGenerator(
     let page = 2;
     while (true) {
       const result: SearchResult = await firstValueFrom(
-        api.getNicheGifs(nicheId, 'trending', 40, page)
+        api.getNicheGifs(nicheId, '', 40, page)
       );
       if (!result.gifs.length) return;
       yield result.gifs;
