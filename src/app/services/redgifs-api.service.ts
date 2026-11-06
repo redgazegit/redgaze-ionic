@@ -111,9 +111,21 @@ export class RedgifsApiService {
   }
 
   private retryAfterMs(err: HttpErrorResponse): number {
-    const seconds = parseInt(err.headers?.get('Retry-After') ?? '5', 10);
-    const secondsWait = Number.isFinite(seconds) ? seconds : 5;
-    return Math.min(secondsWait, 30) * 1000 + 1000;
+    // RedGIFs answers 429 with the wait inside the body and sends no Retry-After:
+    // {"error":{"code":"RateLimited","delay":1161,"subject":"...|gif-search|..."}}
+    const bodyDelay = (err.error as { error?: { delay?: unknown } } | null)?.error?.delay;
+    const headerSeconds = parseInt(err.headers?.get('Retry-After') ?? '', 10);
+
+    let wait: number;
+    if (typeof bodyDelay === 'number' && Number.isFinite(bodyDelay)) {
+      wait = bodyDelay;
+    } else if (Number.isFinite(headerSeconds)) {
+      wait = headerSeconds * 1000;
+    } else {
+      wait = 5000;
+    }
+
+    return Math.min(Math.max(wait, 500), 30000) + 500;
   }
 
   private clearToken(): void {

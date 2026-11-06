@@ -355,6 +355,26 @@ describe('RedgifsApiService', () => {
     expect(result.gifs[0].id).toBe('retried');
   }));
 
+  it('should honour the delay carried in the RateLimited body', fakeAsync(() => {
+    initService();
+    (TestBed.inject(SettingsService) as any).update({ rateLimitEnabled: true });
+
+    service.getTopThisWeek().subscribe(() => {});
+    flushAuth();
+    tick(2000);
+
+    httpCtrl.expectOne(TOP_WEEK_PATH).flush(
+      { error: { code: 'RateLimited', message: 'Too many requests, please retry later.', status: 429, delay: 4000, subject: '2a06:98c0:3600:0|gif-search|498307' } },
+      { status: 429, statusText: 'Too Many Requests' }
+    );
+
+    tick(3000);
+    httpCtrl.expectNone(TOP_WEEK_PATH);
+
+    tick(2000);
+    httpCtrl.expectOne(TOP_WEEK_PATH).flush({ gifs: [] });
+  }));
+
   it('should stop retrying 429 after MAX_RETRIES and emit the error', fakeAsync(() => {
     initService();
     (TestBed.inject(SettingsService) as any).update({ rateLimitEnabled: true });
