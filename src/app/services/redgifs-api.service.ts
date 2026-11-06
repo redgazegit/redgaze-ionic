@@ -21,6 +21,7 @@ export class RedgifsApiService {
   private readonly TOKEN_TTL = 23 * 60 * 60 * 1000;
   private readonly MIN_GAP = 1000;
   private readonly MAX_RETRIES = 3;
+  private readonly MAX_RETRY_WAIT = 30000;
   private token: string | null = null;
   private tokenExpiry = 0;
   private lastRequest = 0;
@@ -94,8 +95,7 @@ export class RedgifsApiService {
         headers: new HttpHeaders({ 'Accept': 'application/json' })
       })),
       catchError(err => {
-        if (err.status === 429 && this.settings.get().rateLimitEnabled && retries < this.MAX_RETRIES) {
-          this.backoffUntil = Date.now() + this.retryAfterMs(err);
+        if (err.status === 429 && this.settings.get().rateLimitEnabled && retries < this.MAX_RETRIES && this.scheduleBackoff(err)) {
           return this.requestTempToken(retries + 1);
         }
         return throwError(() => err);
@@ -125,7 +125,14 @@ export class RedgifsApiService {
       wait = 5000;
     }
 
-    return Math.min(Math.max(wait, 500), 30000) + 500;
+    return Math.max(wait, 500);
+  }
+
+  private scheduleBackoff(err: HttpErrorResponse): boolean {
+    const requested = this.retryAfterMs(err);
+    this.backoffUntil = Date.now() + Math.min(requested, this.MAX_RETRY_WAIT) + 500;
+    // Retrying sooner than RedGIFs asked only burns another request and gets another 429.
+    return requested <= this.MAX_RETRY_WAIT;
   }
 
   private clearToken(): void {
@@ -141,8 +148,7 @@ export class RedgifsApiService {
         switchMap(() => this.http.get<T>(`${this.config.baseUrl}${path}`, { headers: this.headers(), observe: 'response' }).pipe(
           map(r => { const b = r.body as any; if (b?.error) throw new HttpErrorResponse({ error: b.error, status: r.status, statusText: r.statusText, url: r.url ?? undefined }); return b as T; }),
           catchError(err => {
-            if (err.status === 429 && this.settings.get().rateLimitEnabled && retries < this.MAX_RETRIES) {
-              this.backoffUntil = Date.now() + this.retryAfterMs(err);
+            if (err.status === 429 && this.settings.get().rateLimitEnabled && retries < this.MAX_RETRIES && this.scheduleBackoff(err)) {
               return this.get<T>(path, retries + 1);
             }
             if ((err.status === 401 || err.status === 403) && retries < 1) {

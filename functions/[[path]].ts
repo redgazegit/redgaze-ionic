@@ -37,6 +37,11 @@ export async function onRequest(context) {
       const resHeaders = new Headers(res.headers)
       resHeaders.delete('access-control-allow-origin')
       resHeaders.delete('content-encoding')
+      // Media filenames are content-addressed, so they never change for a given URL.
+      // Without this the edge reports miss/revalidated on every request.
+      if (cfg.prefix !== '/api' && res.ok) {
+        resHeaders.set('Cache-Control', 'public, max-age=31536000, immutable')
+      }
 
       return new Response(res.body, { status: res.status, headers: resHeaders })
     }

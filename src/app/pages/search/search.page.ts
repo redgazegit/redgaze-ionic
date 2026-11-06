@@ -14,7 +14,6 @@ import { IonAvatar, IonBadge, IonButton, IonCard, IonCardContent, IonCardHeader,
 
 import { GifCardComponent } from '../../components/gif-card/gif-card.component';
 import { SkeletonCardComponent } from '../../components/skeleton-card/skeleton-card.component';
-import { JsonPipe } from '@angular/common';
 
 @Component({
     selector: 'app-search',
@@ -24,8 +23,7 @@ import { JsonPipe } from '@angular/common';
     IonAvatar, IonBadge, IonButton, IonCard, IonCardContent, IonCardHeader, IonCardTitle, IonChip, IonContent, IonHeader, IonIcon, IonItem, IonLabel, IonList, IonSearchbar, IonSegment, IonSegmentButton, IonToolbar,
     GifCardComponent,
     SkeletonCardComponent,
-    RouterLink,
-    JsonPipe
+    RouterLink
 ],
     changeDetection: ChangeDetectionStrategy.OnPush,
 })

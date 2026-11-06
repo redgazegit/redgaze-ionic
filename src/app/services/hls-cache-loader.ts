@@ -10,6 +10,8 @@ import { Capacitor, CapacitorHttp, HttpResponse } from '@capacitor/core';
 
 const CACHE_NAME = 'redgaze-media-v1';
 
+type Fragment = { data: ArrayBuffer; code: number };
+
 export class CacheFragmentLoader implements Loader<FragmentLoaderContext> {
   private abortController: AbortController | null = null;
 
@@ -49,81 +51,8 @@ export class CacheFragmentLoader implements Loader<FragmentLoaderContext> {
     this.stats.loading.start = performance.now();
 
     try {
-      const url = context.url;
-      const isRange = context.rangeEnd != null;
-      const init: RequestInit = { signal: this.abortController.signal };
-      if (context.rangeEnd != null) {
-        init.headers = {
-          Range: `bytes=${context.rangeStart ?? 0}-${context.rangeEnd - 1}`,
-        };
-      }
-
-      if (Capacitor.isNativePlatform()) {
-        const headers: Record<string, string> = {};
-        if (context.rangeEnd != null) {
-          headers['Range'] = `bytes=${context.rangeStart ?? 0}-${context.rangeEnd - 1}`;
-        }
-        const res: HttpResponse = await CapacitorHttp.request({
-          url,
-          method: 'GET',
-          headers,
-          responseType: 'arraybuffer',
-        });
-        if (res.status < 200 || res.status >= 300) throw new Error(`HTTP ${res.status}`);
-        const base64 = res.data as string;
-        const byteChars = atob(base64);
-        const bytes = new Uint8Array(byteChars.length);
-        for (let i = 0; i < byteChars.length; i++) {
-          bytes[i] = byteChars.charCodeAt(i);
-        }
-        this.stats.loaded = bytes.byteLength;
-        this.stats.total = bytes.byteLength;
-        this.stats.loading.end = performance.now();
-        callbacks.onSuccess({ url, data: bytes.buffer as ArrayBuffer, code: res.status }, this.stats, context, null);
-        return;
-      }
-
-      if (typeof caches === 'undefined') {
-        const response = await fetch(url, init);
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        let data = await response.arrayBuffer();
-        this.stats.loaded = data.byteLength;
-        this.stats.total = data.byteLength;
-        this.stats.loading.end = performance.now();
-        callbacks.onSuccess({ url, data, code: response.status }, this.stats, context, null);
-        return;
-      }
-
-      const cache = await caches.open(CACHE_NAME);
-      const cached = await cache.match(url);
-
-      if (cached) {
-        let data = await cached.arrayBuffer();
-        if (context.rangeEnd != null) {
-          data = data.slice(context.rangeStart ?? 0, context.rangeEnd);
-        }
-        this.stats.loaded = data.byteLength;
-        this.stats.total = data.byteLength;
-        this.stats.loading.end = performance.now();
-        callbacks.onSuccess({ url, data, code: 206 }, this.stats, context, null);
-        return;
-      }
-
-      const response = await fetch(url, init);
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
-      const cacheTarget = isRange
-        ? await fetch(url, { signal: this.abortController.signal })
-        : response.clone();
-      if (cacheTarget.ok) {
-        await cache.put(url, cacheTarget);
-      }
-
-      let data = await response.arrayBuffer();
-      this.stats.loaded = data.byteLength;
-      this.stats.total = data.byteLength;
-      this.stats.loading.end = performance.now();
-      callbacks.onSuccess({ url, data, code: response.status }, this.stats, context, null);
+      const fragment = await this.fetchFragment(context);
+      this.reportSuccess(fragment, context, callbacks);
     } catch (err: any) {
       if (err.name === 'AbortError') return;
       this.stats.loading.end = performance.now();
@@ -138,4 +67,86 @@ export class CacheFragmentLoader implements Loader<FragmentLoaderContext> {
   getResponseHeader(name: string): string | null {
     return null;
   }
+
+  private fetchFragment(context: FragmentLoaderContext): Promise<Fragment> {
+    if (Capacitor.isNativePlatform()) return this.fetchNative(context);
+    if (typeof caches === 'undefined') return this.fetchDirect(context);
+    return this.fetchViaCache(context);
+  }
+
+  private async fetchNative(context: FragmentLoaderContext): Promise<Fragment> {
+    const headers: Record<string, string> = {};
+    if (context.rangeEnd != null) {
+      headers['Range'] = `bytes=${context.rangeStart ?? 0}-${context.rangeEnd - 1}`;
+    }
+    const res: HttpResponse = await CapacitorHttp.request({
+      url: context.url,
+      method: 'GET',
+      headers,
+      responseType: 'arraybuffer',
+    });
+    if (res.status < 200 || res.status >= 300) throw new Error(`HTTP ${res.status}`);
+    return { data: base64ToArrayBuffer(res.data as string), code: res.status };
+  }
+
+  private async fetchDirect(context: FragmentLoaderContext): Promise<Fragment> {
+    const response = await fetch(context.url, this.requestInit(context));
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return { data: await response.arrayBuffer(), code: response.status };
+  }
+
+  private async fetchViaCache(context: FragmentLoaderContext): Promise<Fragment> {
+    const cache = await caches.open(CACHE_NAME);
+    const cached = await cache.match(context.url);
+
+    if (cached) {
+      let data = await cached.arrayBuffer();
+      if (context.rangeEnd != null) {
+        data = data.slice(context.rangeStart ?? 0, context.rangeEnd);
+      }
+      return { data, code: 206 };
+    }
+
+    const response = await fetch(context.url, this.requestInit(context));
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+    const cacheTarget = context.rangeEnd != null
+      ? await fetch(context.url, { signal: this.abortController!.signal })
+      : response.clone();
+    if (cacheTarget.ok) {
+      await cache.put(context.url, cacheTarget);
+    }
+
+    return { data: await response.arrayBuffer(), code: response.status };
+  }
+
+  private requestInit(context: FragmentLoaderContext): RequestInit {
+    const init: RequestInit = { signal: this.abortController!.signal };
+    if (context.rangeEnd != null) {
+      init.headers = {
+        Range: `bytes=${context.rangeStart ?? 0}-${context.rangeEnd - 1}`,
+      };
+    }
+    return init;
+  }
+
+  private reportSuccess(
+    fragment: Fragment,
+    context: FragmentLoaderContext,
+    callbacks: LoaderCallbacks<FragmentLoaderContext>,
+  ): void {
+    this.stats.loaded = fragment.data.byteLength;
+    this.stats.total = fragment.data.byteLength;
+    this.stats.loading.end = performance.now();
+    callbacks.onSuccess({ url: context.url, data: fragment.data, code: fragment.code }, this.stats, context, null);
+  }
+}
+
+function base64ToArrayBuffer(base64: string): ArrayBuffer {
+  const byteChars = atob(base64);
+  const bytes = new Uint8Array(byteChars.length);
+  for (let i = 0; i < byteChars.length; i++) {
+    bytes[i] = byteChars.charCodeAt(i);
+  }
+  return bytes.buffer as ArrayBuffer;
 }
