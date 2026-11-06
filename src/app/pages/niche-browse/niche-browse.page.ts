@@ -6,6 +6,7 @@ import { RedgifsApiService } from '../../services/redgifs-api.service';
 import { SettingsService } from '../../services/settings.service';
 import { WatchQueueService } from '../../services/watch-queue.service';
 import { nicheFeedGenerator } from '../../services/feed-generators';
+import { navigateToGif } from '../../services/gif-navigation';
 import { Gif } from '../../models/gif.model';
 import { IonBackButton, IonButton, IonButtons, IonContent, IonHeader, IonIcon, IonInfiniteScroll, IonInfiniteScrollContent, IonSpinner, IonTitle, IonToolbar } from '@ionic/angular/standalone';
 
@@ -58,12 +59,11 @@ export class NicheBrowsePage implements OnInit {
   }
 
   onCardClick(gifId: string, index: number): void {
-    if (this.ss.get().storiesNavigation) {
-      this.watchQueue.setQueue(this.gifs(), index, nicheFeedGenerator(this.api, this.nicheId()));
-      this.router.navigate(['/stories', gifId]);
-    } else {
-      this.router.navigate(['/watch', gifId]);
-    }
+    navigateToGif(
+      { router: this.router, settings: this.ss, queue: this.watchQueue },
+      gifId, index, this.gifs(),
+      nicheFeedGenerator(this.api, this.nicheId()),
+    );
   }
 
   onCreatorClick(username: string): void {

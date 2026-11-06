@@ -6,6 +6,7 @@ import { RedgifsApiService } from '../../services/redgifs-api.service';
 import { SettingsService } from '../../services/settings.service';
 import { WatchQueueService } from '../../services/watch-queue.service';
 import { homeFeedGenerator } from '../../services/feed-generators';
+import { navigateToGif } from '../../services/gif-navigation';
 import { Gif, Creator, Tag, Niche, SearchResult } from '../../models/gif.model';
 import { IonAvatar, IonBadge, IonButton, IonButtons, IonCard, IonCardContent, IonCardHeader, IonCardTitle, IonChip, IonContent, IonHeader, IonIcon, IonInfiniteScroll, IonInfiniteScrollContent, IonItem, IonLabel, IonRefresher, IonRefresherContent, IonSegment, IonSegmentButton, IonTitle, IonToolbar } from '@ionic/angular/standalone';
 
@@ -167,15 +168,11 @@ export class HomePage {
 
   onCardClick(gifId: string, index: number): void {
     const section = this.selectedSection();
-    if (this.ss.get().storiesNavigation && section !== 'trending') {
-      this.watchQueue.setQueue(this.gifs(), index, homeFeedGenerator(this.api, section));
-      this.router.navigate(['/stories', gifId]);
-    } else if (this.ss.get().storiesNavigation) {
-      this.watchQueue.setQueue(this.gifs(), index);
-      this.router.navigate(['/stories', gifId]);
-    } else {
-      this.router.navigate(['/watch', gifId]);
-    }
+    const generator = section === 'trending' ? undefined : homeFeedGenerator(this.api, section);
+    navigateToGif(
+      { router: this.router, settings: this.ss, queue: this.watchQueue },
+      gifId, index, this.gifs(), generator,
+    );
   }
 
   onCreatorClick(username: string): void {

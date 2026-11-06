@@ -7,6 +7,7 @@ import { RedgifsApiService } from '../../services/redgifs-api.service';
 import { SettingsService } from '../../services/settings.service';
 import { WatchQueueService } from '../../services/watch-queue.service';
 import { searchFeedGenerator } from '../../services/feed-generators';
+import { navigateToGif } from '../../services/gif-navigation';
 import { Gif, TagSuggestion, User } from '../../models/gif.model';
 
 import { IonAvatar, IonBadge, IonButton, IonCard, IonCardContent, IonCardHeader, IonCardTitle, IonChip, IonContent, IonHeader, IonIcon, IonItem, IonLabel, IonList, IonSearchbar, IonSegment, IonSegmentButton, IonSpinner, IonToolbar } from '@ionic/angular/standalone';
@@ -146,12 +147,11 @@ export class SearchPage implements OnInit, OnDestroy {
   }
 
   onCardClick(gifId: string, index: number): void {
-    if (this.ss.get().storiesNavigation) {
-      this.watchQueue.setQueue(this.results(), index, searchFeedGenerator(this.api, this.query(), this.searchType()));
-      this.router.navigate(['/stories', gifId]);
-    } else {
-      this.router.navigate(['/watch', gifId]);
-    }
+    navigateToGif(
+      { router: this.router, settings: this.ss, queue: this.watchQueue },
+      gifId, index, this.results(),
+      searchFeedGenerator(this.api, this.query(), this.searchType()),
+    );
   }
 
   onCreatorClick(username: string): void {
