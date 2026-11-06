@@ -141,6 +141,10 @@ export class HomePage {
     return this.feedQuery.hasNextPage();
   });
 
+  readonly hasGifs = computed(() => this.gifs().length > 0);
+  readonly showFeedSkeleton = computed(() => this.loading() && this.gifs().length === 0);
+  readonly showFeedEmpty = computed(() => !this.loading() && this.gifs().length === 0);
+
   switchSection(section: string): void {
     this.selectedSection.set(section);
   }
