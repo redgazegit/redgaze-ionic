@@ -32,7 +32,7 @@ describe('SearchPage', () => {
     await TestBed.configureTestingModule({
       imports: [SearchPage],
       providers: [
-        provideRouter([]),
+        provideRouter([{ path: 'search/:query', component: SearchPage }]),
         provideAngularQuery(new QueryClient({
           defaultOptions: { queries: { retry: false } }
         })),
