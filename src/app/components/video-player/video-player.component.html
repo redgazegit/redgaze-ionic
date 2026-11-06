@@ -1,5 +1,28 @@
-<div class="video-card" [class.stories-mode]="storiesMode()" [attr.data-testid]="'video-player-' + gif().id">
+<div
+  class="video-card"
+  [class.stories-mode]="mode() === 'stories'"
+  [class.watch-mode]="mode() === 'watch'"
+  [attr.data-testid]="'video-player-' + gif().id"
+>
   <div class="player-container">
+    @if (mode() === 'grid' && !sourceReady()) {
+      <div class="video-placeholder" data-testid="vp-placeholder">
+        @if (posterLoading() || !posterSrc()) {
+          <div class="skeleton"></div>
+          <app-skeleton-card />
+        }
+        @if (posterSrc()) {
+          <img
+            [src]="posterSrc()"
+            alt=""
+            class="placeholder-img"
+            (load)="posterLoading.set(false)"
+            (error)="posterLoading.set(false)"
+          />
+        }
+      </div>
+    }
+
     <video
       #videoPlayer
       [attr.src]="videoSrc() || null"
@@ -7,20 +30,41 @@
       playsinline
       muted
       [attr.preload]="preloadStrategy()"
-      [class.plyr]="!storiesMode()"
+      [class.plyr]="mode() !== 'stories'"
     ></video>
-    @if (!storiesMode() && !sourceReady()) {
-      <div class="video-placeholder">
-        @if (posterSrc()) {
-          <img [src]="posterSrc()" class="placeholder-img" alt="" />
-        } @else {
-          <div class="skeleton"></div>
-        }
-        <div class="vp-pulse"></div>
-      </div>
+
+    @if (mode() === 'stories') {
+      @if (loading()) {
+        <div class="overlay stories-loading" data-testid="stories-loading">
+          <ion-icon name="spinner" class="spinner-icon"></ion-icon>
+        </div>
+      }
+      @if (error(); as err) {
+        <div class="overlay stories-error" data-testid="stories-error">
+          <ion-icon name="alert-circle-outline" class="error-icon"></ion-icon>
+          <span>{{ err }}</span>
+          <ion-button fill="clear" size="small" (click)="retry()">Retry</ion-button>
+        </div>
+      }
+    }
+
+    @if (mode() === 'watch') {
+      @if (loading()) {
+        <div class="overlay watch-loading" data-testid="watch-loading">
+          <ion-spinner name="crescent"></ion-spinner>
+        </div>
+      }
+      @if (error(); as err) {
+        <div class="overlay watch-error" data-testid="watch-error">
+          <ion-icon name="alert-circle-outline" class="error-icon"></ion-icon>
+          <h2>{{ err }}</h2>
+          <ion-button fill="outline" (click)="retry()">Retry</ion-button>
+        </div>
+      }
     }
   </div>
-  @if (!storiesMode()) {
+
+  @if (mode() === 'grid') {
     <div class="video-info">
       <div class="info-left">
         @if (gif().userName) {

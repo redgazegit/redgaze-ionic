@@ -7,32 +7,8 @@ import { RedgifsApiService } from '../../services/redgifs-api.service';
 import { FavoritesService } from '../../services/favorites.service';
 import { SettingsService } from '../../services/settings.service';
 import { MockRedgifsApiService, MockFavoritesService, MockSettingsService } from '../../testing/service-mocks';
-import { fakeGif } from '../../testing/test-utils';
 import { testStorage } from '../../../test-setup';
-import { of } from 'rxjs';
-
-vi.mock('plyr', () => ({
-  default: class {
-    on = vi.fn().mockReturnThis();
-    play = vi.fn().mockResolvedValue(undefined);
-    pause = vi.fn();
-    destroy = vi.fn();
-  },
-}));
-
-const MockHlsModule = vi.hoisted(() => {
-  const cl = vi.fn().mockImplementation(() => ({
-    loadSource: vi.fn(),
-    attachMedia: vi.fn(),
-    on: vi.fn(),
-    destroy: vi.fn(),
-  }));
-  (cl as any).isSupported = vi.fn().mockReturnValue(true);
-  (cl as any).Events = { MANIFEST_PARSED: 'hlsManifestParsed', ERROR: 'hlsError' };
-  return { default: cl };
-});
-
-vi.mock('hls.js', () => MockHlsModule);
+import { By } from '@angular/platform-browser';
 
 function makeActivatedRoute(id: string | null) {
   return {
@@ -40,6 +16,32 @@ function makeActivatedRoute(id: string | null) {
     paramMap: { subscribe: vi.fn() },
   } as any as ActivatedRoute;
 }
+
+const mockGif = {
+  id: 'test-gif',
+  userName: 'testuser',
+  description: 'Test GIF',
+  urls: {
+    sd: 'https://media.redgifs.com/sd.mp4',
+    hd: 'https://media.redgifs.com/hd.mp4',
+    thumbnail: 'https://media.redgifs.com/thumb.jpg',
+    poster: 'https://media.redgifs.com/poster.jpg',
+  },
+  type: 'gif',
+  width: 400,
+  height: 300,
+  hasAudio: false,
+  createDate: Date.now() / 1000,
+  tags: ['test'],
+  likes: 10,
+  views: 100,
+  verified: 'n',
+  duration: 5,
+  published: true,
+  promoted: false,
+  niches: ['funny'],
+  sexuality: ['sfw'],
+};
 
 describe('WatchPage', () => {
   let mockFav: MockFavoritesService;
@@ -69,87 +71,37 @@ describe('WatchPage', () => {
     }).compileComponents();
   }
 
-  function createPage() {
+  function createFixture() {
     const fixture = TestBed.createComponent(WatchPage);
     fixture.detectChanges();
-    return fixture.componentInstance;
+    return fixture;
   }
 
   describe('basic creation', () => {
     beforeEach(async () => await initModule());
 
     it('should create', () => {
-      expect(createPage()).toBeTruthy();
+      expect(createFixture().componentInstance).toBeTruthy();
     });
 
     it('should have gif query', () => {
-      expect(createPage().gifQuery).toBeDefined();
+      expect(createFixture().componentInstance.gifQuery).toBeDefined();
     });
   });
 
   describe('ngOnInit', () => {
     it('should set id from route param', async () => {
       await initModule(makeActivatedRoute('test-gif-123'));
-      const page = createPage();
+      const page = createFixture().componentInstance;
       page.ngOnInit();
       expect((page as any).id()).toBe('test-gif-123');
     });
 
     it('should handle null route param gracefully', async () => {
       await initModule(makeActivatedRoute(null));
-      const page = createPage();
+      const page = createFixture().componentInstance;
       page.ngOnInit();
       expect((page as any).id()).toBe('');
-    });
-  });
-
-  describe('hasHd', () => {
-    beforeEach(async () => await initModule());
-
-    it('should return true when gif has hd url', () => {
-      const fixture = TestBed.createComponent(WatchPage);
-      const page = fixture.componentInstance;
-      vi.spyOn(page as any, 'gif').mockReturnValue(fakeGif({
-        id: 'test',
-        urls: { ...fakeGif({}).urls, hd: 'https://media.redgifs.com/hd.mp4', sd: 'https://media.redgifs.com/sd.mp4' },
-      }));
-      fixture.detectChanges();
-      expect(page.hasHd()).toBe(true);
-    });
-
-    it('should return false when gif has no hd url', () => {
-      const page = createPage();
-      vi.spyOn(page as any, 'gif').mockReturnValue({
-        id: 'test', urls: { sd: 'https://media.redgifs.com/sd.mp4' }
-      } as any);
-      expect(page.hasHd()).toBe(false);
-    });
-
-    it('should return false when gif is undefined', () => {
-      const page = createPage();
-      vi.spyOn(page as any, 'gif').mockReturnValue(undefined);
-      expect(page.hasHd()).toBe(false);
-    });
-  });
-
-  describe('posterSrc', () => {
-    beforeEach(async () => await initModule());
-
-    it('should return proxied thumbnail url', () => {
-      const page = createPage();
-      (page as any).setPoster('https://media.redgifs.com/thumb.jpg');
-      expect(page.posterSrc()).toBe('/cdn/thumb.jpg');
-    });
-
-    it('should return empty string when no thumbnail', () => {
-      const page = createPage();
-      (page as any).setPoster('');
-      expect(page.posterSrc()).toBe('');
-    });
-
-    it('should return empty when gif is undefined', () => {
-      const page = createPage();
-      expect(page.posterSrc()).toBe('');
     });
   });
 
@@ -157,8 +109,8 @@ describe('WatchPage', () => {
     beforeEach(async () => await initModule());
 
     it('should navigate to creator page', () => {
-      const page = createPage();
-      vi.spyOn(page as any, 'gif').mockReturnValue({ userName: 'testcreator' } as any);
+      const page = createFixture().componentInstance;
+      vi.spyOn(page, 'gif', 'get').mockReturnValue(() => ({ userName: 'testcreator' } as any));
       const routerSpy = vi.fn();
       (page as any).router = { navigate: routerSpy };
       page.goToCreator();
@@ -166,8 +118,8 @@ describe('WatchPage', () => {
     });
 
     it('should do nothing when no userName', () => {
-      const page = createPage();
-      vi.spyOn(page as any, 'gif').mockReturnValue({ userName: undefined } as any);
+      const page = createFixture().componentInstance;
+      vi.spyOn(page, 'gif', 'get').mockReturnValue(() => ({ userName: undefined } as any));
       const routerSpy = vi.fn();
       (page as any).router = { navigate: routerSpy };
       page.goToCreator();
@@ -175,188 +127,66 @@ describe('WatchPage', () => {
     });
   });
 
-  describe('toggleQuality', () => {
+  describe('template rendering', () => {
     beforeEach(async () => await initModule());
 
-    it('should toggle from hd to sd and call loadMp4', () => {
-      const page = createPage();
-      page.quality = 'hd';
-      (page as any).usingHls = false;
-      vi.spyOn(page as any, 'loadMp4').mockImplementation(() => {});
-      page.toggleQuality();
-      expect(page.quality).toBe('sd');
-      expect((page as any).loadMp4).toHaveBeenCalledOnce();
-    });
-
-    it('should toggle from sd to hd and call initHls when usingHls', () => {
-      const page = createPage();
-      page.quality = 'sd';
-      (page as any).usingHls = true;
-      vi.spyOn(page as any, 'initHls').mockImplementation(() => {});
-      page.toggleQuality();
-      expect(page.quality).toBe('hd');
-      expect((page as any).initHls).toHaveBeenCalledOnce();
-    });
-  });
-
-  describe('loadMp4', () => {
-    beforeEach(async () => await initModule());
-
-    it('should set video src and play', () => {
-      const page = createPage();
-      const videoEl = document.createElement('video');
-      vi.spyOn(page as any, 'videoRef').mockReturnValue({ nativeElement: videoEl } as any);
-      vi.spyOn(page as any, 'gif').mockReturnValue({
-        id: 'test',
-        urls: { hd: 'https://media.redgifs.com/hd.mp4', sd: 'https://media.redgifs.com/sd.mp4' }
-      } as any);
-      page.quality = 'hd';
-      vi.spyOn(videoEl, 'play').mockResolvedValue();
-      (page as any).loadMp4();
-      expect(videoEl.src).toContain('/cdn/hd.mp4');
-    });
-
-    it('should do nothing when no video element', () => {
-      const page = createPage();
-      vi.spyOn(page as any, 'videoRef').mockReturnValue(null);
-      vi.spyOn(page as any, 'gif').mockReturnValue({
-        id: 'test', urls: { hd: 'https://media.redgifs.com/hd.mp4' }
-      } as any);
-      expect(() => (page as any).loadMp4()).not.toThrow();
-    });
-  });
-
-  describe('toggleFav', () => {
-    beforeEach(async () => await initModule());
-
-    it('should call favService.toggle when gif exists', () => {
-      const page = createPage();
-      const gif = { id: 'fav-test' } as any;
-      vi.spyOn(page as any, 'gif').mockReturnValue(gif);
-      vi.spyOn(mockFav, 'toggle');
-      page.toggleFav();
-      expect(mockFav.toggle).toHaveBeenCalledWith(gif);
-    });
-
-    it('should do nothing when gif is undefined', () => {
-      const page = createPage();
-      vi.spyOn(page as any, 'gif').mockReturnValue(undefined);
-      vi.spyOn(mockFav, 'toggle');
-      page.toggleFav();
-      expect(mockFav.toggle).not.toHaveBeenCalled();
-    });
-  });
-
-  describe('isFav', () => {
-    beforeEach(async () => await initModule());
-
-    it('should return true when gif is favorite', () => {
+    function createWithGif() {
       const fixture = TestBed.createComponent(WatchPage);
       const page = fixture.componentInstance;
-      vi.spyOn(page as any, 'gif').mockReturnValue(fakeGif({ id: 'fav-check' }));
-      vi.spyOn(mockFav, 'isFavorite').mockReturnValue(true);
+      vi.spyOn(page, 'gif', 'get').mockReturnValue(() => mockGif as any);
       fixture.detectChanges();
-      expect(page.isFav()).toBe(true);
-    });
-
-    it('should return false when gif is not favorite', () => {
-      const page = createPage();
-      vi.spyOn(page as any, 'gif').mockReturnValue({ id: 'fav-check' } as any);
-      vi.spyOn(mockFav, 'isFavorite').mockReturnValue(false);
-      expect(page.isFav()).toBe(false);
-    });
-
-    it('should return false when gif is undefined', () => {
-      const page = createPage();
-      vi.spyOn(page as any, 'gif').mockReturnValue(undefined);
-      expect(page.isFav()).toBe(false);
-    });
-  });
-
-  describe('download', () => {
-    let origCreateElement: any;
-    beforeEach(async () => await initModule());
-
-    afterEach(() => {
-      if (origCreateElement) {
-        document.createElement = origCreateElement;
-      }
-    });
-
-    it('should create anchor and click', () => {
-      const page = createPage();
-      vi.spyOn(page as any, 'gif').mockReturnValue({
-        id: 'dl-test',
-        urls: { hd: 'https://media.redgifs.com/dl.mp4' }
-      } as any);
-      const anchor = { href: '', download: '', click: vi.fn() };
-      origCreateElement = document.createElement;
-      document.createElement = vi.fn().mockReturnValue(anchor as any);
-      page.download();
-      expect(anchor.href).toBe('/cdn/dl.mp4');
-      expect(anchor.download).toBe('dl-test.mp4');
-      expect(anchor.click).toHaveBeenCalledOnce();
-    });
-
-    it('should do nothing when gif is undefined', () => {
-      const page = createPage();
-      vi.spyOn(page as any, 'gif').mockReturnValue(undefined);
-      expect(() => page.download()).not.toThrow();
-    });
-  });
-
-  describe('ngOnDestroy', () => {
-    it('should destroy hls, player and blob URLs', async () => {
-      await initModule(makeActivatedRoute('test'));
-      const fixture = TestBed.createComponent(WatchPage);
-      fixture.detectChanges();
-      const page = fixture.componentInstance as any;
-      page.player = { destroy: vi.fn() };
-      page.hls = { destroy: vi.fn() };
-      page.blobUrls = ['blob:http://test'];
-      vi.spyOn(URL, 'revokeObjectURL');
-
-      fixture.destroy();
-
-      expect(page.hls.destroy).toHaveBeenCalled();
-      expect(page.player.destroy).toHaveBeenCalled();
-      expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:http://test');
-    });
-  });
-
-  describe('initPlayer', () => {
-    beforeEach(async () => await initModule());
-    function setupForInit() {
-      const page = createPage() as any;
-      page.videoRef = vi.fn().mockReturnValue({ nativeElement: document.createElement('video') });
-      return page;
+      return fixture;
     }
 
-    it('should create Plyr and set video source in MP4 mode', () => {
-      const page = setupForInit();
-      vi.spyOn(page as any, 'gif').mockReturnValue({ id: 'test', urls: { hd: 'https://media.redgifs.com/hd.mp4', sd: '' } } as any);
-      page.initPlayer();
-      expect(page.player).toBeDefined();
-      expect(page.videoRef().nativeElement.src).toContain('/cdn/');
+    it('should show app-video-player when gif is loaded', () => {
+      const fixture = createWithGif();
+      const player = fixture.debugElement.query(By.css('app-video-player'));
+      expect(player).toBeTruthy();
     });
 
-    it('should not create duplicate player', () => {
-      const page = setupForInit();
-      vi.spyOn(page as any, 'gif').mockReturnValue({ id: 'test', urls: { hd: '', sd: 'https://media.redgifs.com/sd.mp4' } } as any);
-      page.initPlayer();
-      const firstPlayer = page.player;
-      page.initPlayer();
-      expect(page.player).toBe(firstPlayer);
+    it('should show gif details when gif is loaded', () => {
+      const fixture = createWithGif();
+      const details = fixture.debugElement.query(By.css('[data-testid="gif-details"]'));
+      expect(details).toBeTruthy();
     });
 
-    it('should use HLS when playbackMode is hls and gif has hls', () => {
-      mockSettings.setSettings({ playbackMode: 'hls', quality: 'hd', rateLimitEnabled: true, storiesNavigation: true, gridAutoplay: true });
-      const page = setupForInit();
-      vi.spyOn(page as any, 'gif').mockReturnValue({ id: 'hls-test', urls: { hd: '', sd: '' }, hls: true } as any);
-      page.initPlayer();
-      expect(page.usingHls).toBe(true);
-      expect(page.player).toBeDefined();
+    it('should show creator name in header', () => {
+      const fixture = createWithGif();
+      const creatorEl = fixture.debugElement.query(By.css('[data-testid="watch-creator-name"]'));
+      expect(creatorEl).toBeTruthy();
+      expect(creatorEl.nativeElement.textContent).toContain('testuser');
+    });
+
+    it('should show gif details content', () => {
+      const fixture = createWithGif();
+      const nameEl = fixture.debugElement.query(By.css('[data-testid="watch-creator-detail-name"]'));
+      expect(nameEl).toBeTruthy();
+      expect(nameEl.nativeElement.textContent).toContain('testuser');
+    });
+
+    it('should show tags section', () => {
+      const fixture = createWithGif();
+      const tags = fixture.debugElement.query(By.css('[data-testid="gif-tags-section"]'));
+      expect(tags).toBeTruthy();
+    });
+
+    it('should show quality badge', () => {
+      const fixture = createWithGif();
+      const qualityItem = fixture.debugElement.query(By.css('[data-testid="gif-quality"]'));
+      expect(qualityItem).toBeTruthy();
+    });
+
+    it('should show not-found state when no gif, not loading, not error', () => {
+      const fixture = TestBed.createComponent(WatchPage);
+      const page = fixture.componentInstance;
+      vi.spyOn(page, 'gif', 'get').mockReturnValue(() => undefined);
+      vi.spyOn(page, 'loading', 'get').mockReturnValue(() => false);
+      vi.spyOn(page, 'error', 'get').mockReturnValue(() => false);
+      fixture.detectChanges();
+
+      const errorEl = fixture.debugElement.query(By.css('.error-state'));
+      expect(errorEl).toBeTruthy();
+      expect(errorEl.nativeElement.textContent).toContain('GIF not found');
     });
   });
 });
-

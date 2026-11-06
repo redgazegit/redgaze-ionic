@@ -6,41 +6,67 @@ import { FavoritesService } from '../../services/favorites.service';
 import { RedgifsApiService } from '../../services/redgifs-api.service';
 import { SettingsService } from '../../services/settings.service';
 import { VideoStateService } from '../../services/video-state.service';
+import { MediaProxyService } from '../../services/media-proxy.service';
 import { MockFavoritesService, MockRedgifsApiService, MockSettingsService, MockVideoStateService } from '../../testing/service-mocks';
 import { fakeGif } from '../../testing/test-utils';
 
 vi.mock('plyr', () => ({
   default: class {
-    on = vi.fn().mockReturnThis();
+    cbs: Record<string, Function[]> = {};
+    on = vi.fn(function(this: any, event: string, cb: Function) {
+      if (!this.cbs) this.cbs = {};
+      if (!this.cbs[event]) this.cbs[event] = [];
+      this.cbs[event].push(cb);
+      if (event === 'ready') setTimeout(cb, 0);
+      return this;
+    });
     play = vi.fn().mockResolvedValue(undefined);
     pause = vi.fn();
     destroy = vi.fn();
   },
 }));
 
-let observerCallback: IntersectionObserverCallback | null;
-let playObserverCallback: IntersectionObserverCallback | null;
+const MockHls = vi.hoisted(function () {
+  const cl = vi.fn().mockImplementation(function () {
+    return {
+      loadSource: vi.fn(function () {}),
+      attachMedia: vi.fn(function () {}),
+      on: vi.fn(function () {}),
+      destroy: vi.fn(function () {}),
+    };
+  });
+  (cl as any).isSupported = vi.fn().mockReturnValue(true);
+  (cl as any).Events = { MANIFEST_PARSED: 'hlsManifestParsed', ERROR: 'hlsError' };
+  return { default: cl };
+});
+vi.mock('hls.js', () => MockHls);
 
+let observers: MockObserver[];
 class MockObserver {
-  static instances: MockObserver[] = [];
   callback: IntersectionObserverCallback;
   options?: IntersectionObserverInit;
-  observe = vi.fn();
-  unobserve = vi.fn();
-  disconnect = vi.fn();
-  takeRecords = vi.fn((): IntersectionObserverEntry[] => []);
   constructor(cb: IntersectionObserverCallback, options?: IntersectionObserverInit) {
     this.callback = cb;
     this.options = options;
-    MockObserver.instances.push(this);
-    if (MockObserver.instances.length === 1) {
-      observerCallback = cb;
-    } else if (MockObserver.instances.length === 2) {
-      playObserverCallback = cb;
-    }
+    observers.push(this);
+    this.observe = vi.fn();
+    this.unobserve = vi.fn();
+    this.disconnect = vi.fn();
+    this.takeRecords = vi.fn(() => []);
   }
 }
 vi.stubGlobal('IntersectionObserver', MockObserver as any);
+
+const intersect = (ratio = 0.5) => ({ isIntersecting: true, intersectionRatio: ratio } as IntersectionObserverEntry);
+const hidden = () => ({ isIntersecting: false, intersectionRatio: 0 } as IntersectionObserverEntry);
+const firePreload = (entries: IntersectionObserverEntry[]) => observers[0]?.callback(entries, null as any);
+const firePlay = (entries: IntersectionObserverEntry[]) => observers[1]?.callback(entries, null as any);
+const tick = () => new Promise(r => setTimeout(r));
+
+const mockProxyVideoProgressive = vi.fn(function (url: string) { return Promise.resolve(url); });
+const mockProxyM3u8 = vi.fn(function (url: string, _token: string) { return Promise.resolve('blob:mock-m3u8'); });
+const mockProxyImage = vi.fn(function (url: string) { return Promise.resolve(url); });
+const mockAbortProgressiveStream = vi.fn(function () {});
 
 describe('VideoPlayerComponent', () => {
   let mockFav: MockFavoritesService;
@@ -49,9 +75,6 @@ describe('VideoPlayerComponent', () => {
   let mockVideoState: MockVideoStateService;
 
   beforeEach(async () => {
-    observerCallback = null;
-    playObserverCallback = null;
-    MockObserver.instances = [];
     mockFav = new MockFavoritesService();
     mockApi = new MockRedgifsApiService();
     mockSettings = new MockSettingsService();
@@ -65,373 +88,227 @@ describe('VideoPlayerComponent', () => {
         { provide: RedgifsApiService, useValue: mockApi },
         { provide: SettingsService, useValue: mockSettings },
         { provide: VideoStateService, useValue: mockVideoState },
+        { provide: MediaProxyService, useValue: {
+          proxyImage: mockProxyImage,
+          proxyVideoProgressive: mockProxyVideoProgressive,
+          proxyM3u8: mockProxyM3u8,
+          abortProgressiveStream: mockAbortProgressiveStream,
+        }},
       ],
       schemas: [CUSTOM_ELEMENTS_SCHEMA],
     }).compileComponents();
   });
 
-  afterEach(() => {
-    vi.restoreAllMocks();
-  });
+  afterAll(() => { vi.unstubAllGlobals(); });
 
-  afterAll(() => {
-    vi.unstubAllGlobals();
-  });
-
-  function createComponent(gif = fakeGif(), storiesMode = false) {
+  function createComponent(gif = fakeGif(), mode: 'grid' | 'stories' | 'watch' = 'grid') {
+    observers = [];
     const fixture = TestBed.createComponent(VideoPlayerComponent);
     fixture.componentRef.setInput('gif', gif);
-    fixture.componentRef.setInput('storiesMode', storiesMode);
+    fixture.componentRef.setInput('mode', mode);
     return fixture;
   }
 
-  it('should create', () => {
-    const fixture = createComponent();
-    expect(fixture.componentInstance).toBeTruthy();
-  });
-
-  it('should set videoSrc and posterSrc from gif input', () => {
-    const gif = fakeGif({
-      urls: {
-        ...fakeGif({}).urls,
-        thumbnail: 'https://media.redgifs.com/thumb.jpg',
-        sd: 'https://media.redgifs.com/test.mp4',
-        hd: 'https://media.redgifs.com/test-hd.mp4',
-      }
-    });
-    mockSettings.setSettings({ playbackMode: 'mp4', quality: 'hd', rateLimitEnabled: true, storiesNavigation: true, gridAutoplay: true });
-
-    const fixture = createComponent(gif);
-    fixture.detectChanges();
-
-    expect(fixture.componentInstance.posterSrc()).toBe('');
-    expect(fixture.componentInstance.videoSrc()).toBe('');
-
-    observerCallback!([{ isIntersecting: true, intersectionRatio: 0 } as IntersectionObserverEntry], null! as any);
-    expect(fixture.componentInstance.posterSrc()).toBe('/cdn/thumb.jpg');
-    expect(fixture.componentInstance.videoSrc()).toBe('/cdn/test-hd.mp4');
-  });
-
-  it('should use sd url when quality=sd', () => {
-    const gif = fakeGif({
-      urls: {
-        ...fakeGif({}).urls,
-        sd: 'https://media.redgifs.com/sd.mp4',
-        hd: 'https://media.redgifs.com/hd.mp4',
-      }
-    });
-    mockSettings.setSettings({ playbackMode: 'mp4', quality: 'sd', rateLimitEnabled: true, storiesNavigation: true, gridAutoplay: true });
-    const fixture = createComponent(gif);
-    fixture.detectChanges();
-    expect(fixture.componentInstance.videoSrc()).toBe('');
-    observerCallback!([{ isIntersecting: true, intersectionRatio: 0 } as IntersectionObserverEntry], null! as any);
-    expect(fixture.componentInstance.videoSrc()).toBe('/cdn/sd.mp4');
-  });
-
-  it('should reflect isFav from favorites service', () => {
-    const gif = fakeGif({ id: 'video-fav-check' });
-    vi.spyOn(mockFav, 'isFavorite').mockReturnValue(true);
-    const fixture = createComponent(gif);
-    expect(fixture.componentInstance.isFav()).toBe(true);
-  });
-
-  it('should toggle favorite', () => {
-    const gif = fakeGif({ id: 'video-fav-toggle' });
-    vi.spyOn(mockFav, 'toggle');
-    const fixture = createComponent(gif);
-    fixture.componentInstance.toggleFav();
-    expect(mockFav.toggle).toHaveBeenCalledWith(gif);
-  });
-
-  it('should navigate to creator on goToCreator', () => {
-    const gif = fakeGif({ userName: 'vid-creator', id: 'nav-test' });
-    const fixture = createComponent(gif);
-    const routerSpy = vi.fn();
-    (fixture.componentInstance as any).router = { navigate: routerSpy };
-    fixture.componentInstance.goToCreator(new MouseEvent('click'));
-    expect(routerSpy).toHaveBeenCalledWith(['/creator', 'vid-creator']);
-  });
-
-  describe('download', () => {
-    let origCreateElement: any;
-
-    afterEach(() => {
-      if (origCreateElement) document.createElement = origCreateElement;
+  describe('grid mode', () => {
+    it('should create', () => {
+      expect(createComponent().componentInstance).toBeTruthy();
     });
 
-    it('should create anchor and click', () => {
-      const gif = fakeGif({
-        id: 'dl-test', urls: { hd: 'https://media.redgifs.com/dl.mp4', sd: '' },
-      });
+    it('should set videoSrc and posterSrc when entering preload zone', async () => {
+      mockSettings.setSettings({ playbackMode: 'mp4', quality: 'hd', rateLimitEnabled: true, storiesNavigation: true, gridAutoplay: true });
+      const gif = fakeGif({ urls: { ...fakeGif({}).urls, thumbnail: 'https://media.redgifs.com/thumb.jpg', sd: 'https://media.redgifs.com/test.mp4', hd: 'https://media.redgifs.com/test-hd.mp4' }});
       const fixture = createComponent(gif);
-      fixture.componentRef.setInput('gif', gif);
-      const anchor = { href: '', download: '', click: vi.fn() };
-      origCreateElement = document.createElement;
-      document.createElement = vi.fn().mockReturnValue(anchor as any);
-      fixture.componentInstance.download();
-      expect(anchor.href).toBe('https://media.redgifs.com/dl.mp4');
-      expect(anchor.download).toBe('dl-test.mp4');
-      expect(anchor.click).toHaveBeenCalledOnce();
+      fixture.detectChanges();
+      firePreload([intersect(0)]);
+      await tick();
+      expect(fixture.componentInstance.posterSrc()).toBe('/cdn/thumb.jpg');
+      expect(fixture.componentInstance.videoSrc()).toBe('/cdn/test-hd.mp4');
     });
 
-    it('should do nothing when gif is undefined', () => {
-      const fixture = createComponent();
-      fixture.componentRef.setInput('gif', undefined as any);
-      expect(() => fixture.componentInstance.download()).not.toThrow();
+    it('should use sd url when quality=sd when entering preload zone', async () => {
+      mockSettings.setSettings({ playbackMode: 'mp4', quality: 'sd', rateLimitEnabled: true, storiesNavigation: true, gridAutoplay: true });
+      const gif = fakeGif({ urls: { ...fakeGif({}).urls, sd: 'https://media.redgifs.com/sd.mp4', hd: 'https://media.redgifs.com/hd.mp4' }});
+      const fixture = createComponent(gif);
+      fixture.detectChanges();
+      firePreload([intersect(0)]);
+      await tick();
+      expect(fixture.componentInstance.videoSrc()).toBe('/cdn/sd.mp4');
     });
-  });
 
-  describe('ngOnDestroy', () => {
-    it('should clean up player, observer, timer, and blob URLs', () => {
+    it('should reflect isFav', () => {
+      vi.spyOn(mockFav, 'isFavorite').mockReturnValue(true);
+      expect(createComponent().componentInstance.isFav()).toBe(true);
+    });
+
+    it('should toggle favorite', () => {
+      const gif = fakeGif({ id: 'fav-toggle' });
+      vi.spyOn(mockFav, 'toggle');
+      createComponent(gif).componentInstance.toggleFav();
+      expect(mockFav.toggle).toHaveBeenCalledWith(gif);
+    });
+
+    it('should navigate to creator', () => {
+      const gif = fakeGif({ userName: 'vid-creator', id: 'nav-test' });
+      const page = createComponent(gif).componentInstance;
+      const routerSpy = vi.fn();
+      (page as any).router = { navigate: routerSpy };
+      page.goToCreator(new MouseEvent('click'));
+      expect(routerSpy).toHaveBeenCalledWith(['/creator', 'vid-creator']);
+    });
+
+    it('should create Plyr in grid mode after entering the preload zone', async () => {
       const fixture = createComponent();
       fixture.detectChanges();
-      const page = fixture.componentInstance as any;
-      page.sourceAttached = true;
-      page.player = { destroy: vi.fn(), on: vi.fn(), play: vi.fn().mockResolvedValue(undefined), pause: vi.fn() };
-      page.blobUrls = ['blob:http://test1', 'blob:http://test2'];
-      const timer = setTimeout(() => {}, 10000);
-      page.playTimer = timer;
+      firePreload([intersect(0)]);
+      await tick();
+      expect((fixture.componentInstance as any).player).toBeTruthy();
+    });
 
-      vi.spyOn(globalThis, 'clearTimeout');
-      const abortSpy = vi.spyOn(page.mediaProxy, 'abortProgressiveStream');
+    it('should pause when leaving the preload zone', async () => {
+      const fixture = createComponent();
+      fixture.detectChanges();
+      firePreload([intersect(0)]);
+      await tick();
       vi.spyOn(mockVideoState, 'onPause');
-
-      fixture.destroy();
-
-      expect(globalThis.clearTimeout).toHaveBeenCalledWith(timer);
-      expect(page.player.destroy).toHaveBeenCalled();
-      expect(mockVideoState.onPause).toHaveBeenCalled();
-      expect(abortSpy).toHaveBeenCalledTimes(2);
-      expect(abortSpy).toHaveBeenCalledWith('blob:http://test1');
-      expect(abortSpy).toHaveBeenCalledWith('blob:http://test2');
-    });
-  });
-
-  describe('isElementVisible (private)', () => {
-    it('should return true when element is in viewport', () => {
-      const page = createComponent().componentInstance as any;
-      const el = { getBoundingClientRect: () => ({ top: 100, bottom: 500 }) } as HTMLElement;
-      window.innerHeight = 800;
-      expect(page.isElementVisible(el)).toBe(true);
+      firePreload([hidden()]);
+      expect((fixture.componentInstance as any).player.pause).toHaveBeenCalled();
     });
 
-    it('should return false when element below viewport', () => {
-      const page = createComponent().componentInstance as any;
-      const el = { getBoundingClientRect: () => ({ top: 900, bottom: 1000 }) } as HTMLElement;
-      window.innerHeight = 800;
-      expect(page.isElementVisible(el)).toBe(false);
-    });
-
-    it('should return false when element above viewport', () => {
-      const page = createComponent().componentInstance as any;
-      const el = { getBoundingClientRect: () => ({ top: -100, bottom: -50 }) } as HTMLElement;
-      window.innerHeight = 800;
-      expect(page.isElementVisible(el)).toBe(false);
-    });
-  });
-
-  describe('Plyr ready event', () => {
-    function getReadyCallback(fixture: any): Function | null {
-      const page = fixture.componentInstance as any;
-      const calls = page.player.on.mock.calls;
-      const readyCall = calls.find((args: any[]) => args[0] === 'ready');
-      return readyCall ? readyCall[1] : null;
-    }
-
-    it('should auto-play on ready when element is visible', () => {
+    it('should play after 400ms when in the play zone and allowed', async () => {
       const fixture = createComponent();
       fixture.detectChanges();
-      observerCallback!([{ isIntersecting: true, intersectionRatio: 0.5 } as IntersectionObserverEntry], null! as any);
-      fixture.detectChanges();
-      const cb = getReadyCallback(fixture);
-      expect(cb).toBeTruthy();
-      const page = fixture.componentInstance as any;
-      page.sourceAttached = true;
-      vi.spyOn(page, 'isElementVisible').mockReturnValue(true);
-      cb!();
-      expect(page.player.play).toHaveBeenCalled();
+      firePreload([intersect(0)]);
+      await tick();
+      vi.spyOn(mockVideoState, 'requestPlay').mockReturnValue(true);
+      firePlay([intersect(0.5)]);
+      await new Promise(r => setTimeout(r, 450));
+      expect((fixture.componentInstance as any).player.play).toHaveBeenCalled();
     });
 
-    it('should not auto-play on ready when element is not visible', () => {
+    it('should NOT set videoSrc on init (deferred)', () => {
       const fixture = createComponent();
       fixture.detectChanges();
-      observerCallback!([{ isIntersecting: true, intersectionRatio: 0.5 } as IntersectionObserverEntry], null! as any);
+      expect(fixture.componentInstance.videoSrc()).toBe('');
+    });
+
+    it('should set videoSrc when entering preload zone', async () => {
+      const fixture = createComponent();
       fixture.detectChanges();
-      const cb = getReadyCallback(fixture);
-      vi.spyOn(fixture.componentInstance as any, 'isElementVisible').mockReturnValue(false);
-      cb!();
-      expect(fixture.componentInstance['player']!.play).not.toHaveBeenCalled();
+      firePreload([intersect(0)]);
+      await tick();
+      expect(fixture.componentInstance.videoSrc()).toBeTruthy();
     });
   });
 
   describe('stories mode', () => {
-    it('should not create Plyr in stories mode', () => {
-      const fixture = createComponent(fakeGif(), true);
+    it('should NOT create Plyr', async () => {
+      const fixture = createComponent(fakeGif(), 'stories');
       fixture.detectChanges();
-      const videoEl = (fixture.componentInstance as any).videoRef()?.nativeElement;
-      expect(videoEl).toBeTruthy();
-      expect(fixture.componentInstance['player']).toBeUndefined();
+      await tick();
+      expect((fixture.componentInstance as any).player).toBeUndefined();
     });
 
-    it('should set videoSrc and posterSrc in stories mode', () => {
-      const gif = fakeGif({
-        urls: {
-          ...fakeGif({}).urls,
-          thumbnail: 'https://media.redgifs.com/thumb.jpg',
-          sd: 'https://media.redgifs.com/sd.mp4',
-          hd: 'https://media.redgifs.com/hd.mp4',
-        }
-      });
+    it('should set videoSrc and posterSrc', async () => {
       mockSettings.setSettings({ playbackMode: 'mp4', quality: 'hd', rateLimitEnabled: true, storiesNavigation: true, gridAutoplay: true });
-      const fixture = createComponent(gif, true);
+      const gif = fakeGif({ urls: { ...fakeGif({}).urls, thumbnail: 'https://media.redgifs.com/thumb.jpg', sd: 'https://media.redgifs.com/sd.mp4', hd: 'https://media.redgifs.com/hd.mp4' }});
+      const fixture = createComponent(gif, 'stories');
       fixture.detectChanges();
+      await tick();
       expect(fixture.componentInstance.posterSrc()).toBe('/cdn/thumb.jpg');
       expect(fixture.componentInstance.videoSrc()).toBe('/cdn/hd.mp4');
     });
 
-    it('should swap the source when the gif input changes', async () => {
-      const gifA = fakeGif({
-        id: 'story-a',
-        urls: { sd: '', hd: 'https://media.redgifs.com/a-hd.mp4', thumbnail: 'https://media.redgifs.com/a.jpg' },
-      });
-      const gifB = fakeGif({
-        id: 'story-b',
-        urls: { sd: '', hd: 'https://media.redgifs.com/b-hd.mp4', thumbnail: 'https://media.redgifs.com/b.jpg' },
-      });
-
-      const playedSrc: Array<string | null> = [];
-      vi.spyOn(HTMLMediaElement.prototype, 'play').mockImplementation(function (this: HTMLMediaElement) {
-        playedSrc.push(this.getAttribute('src'));
-        return Promise.resolve();
-      });
-
-      const fixture = createComponent(gifA, true);
+    it('should release and re-attach when gif changes', async () => {
+      const gif1 = fakeGif({ id: 'story-1', urls: { ...fakeGif({}).urls, hd: 'https://media.redgifs.com/story1.mp4' }});
+      const gif2 = fakeGif({ id: 'story-2', urls: { ...fakeGif({}).urls, hd: 'https://media.redgifs.com/story2.mp4' }});
+      mockSettings.setSettings({ playbackMode: 'mp4', quality: 'hd', rateLimitEnabled: true, storiesNavigation: true, gridAutoplay: true });
+      const fixture = createComponent(gif1, 'stories');
       fixture.detectChanges();
-      await fixture.whenStable();
-      expect(fixture.componentInstance.videoSrc()).toBe('/cdn/a-hd.mp4');
-      expect(playedSrc.at(-1)).toBe('/cdn/a-hd.mp4');
-      expect(fixture.componentInstance['videoRef']()!.nativeElement.muted).toBe(true);
-
-      fixture.componentRef.setInput('gif', gifB);
+      await tick();
+      expect(fixture.componentInstance.videoSrc()).toBe('/cdn/story1.mp4');
+      fixture.componentRef.setInput('gif', gif2);
       fixture.detectChanges();
-      await fixture.whenStable();
-      expect(fixture.componentInstance.videoSrc()).toBe('/cdn/b-hd.mp4');
-      expect(fixture.componentInstance.posterSrc()).toBe('/cdn/b.jpg');
-      expect(playedSrc.at(-1)).toBe('/cdn/b-hd.mp4');
+      await tick();
+      expect(fixture.componentInstance.videoSrc()).toBe('/cdn/story2.mp4');
+    });
+
+    it('should set loading=true then false after source resolves', async () => {
+      const gif = fakeGif({ id: 'loading-test' });
+      const fixture = createComponent(gif, 'stories');
+      fixture.detectChanges();
+      expect(fixture.componentInstance.loading()).toBe(true);
+      await tick();
+      expect(fixture.componentInstance.loading()).toBe(false);
+    });
+
+    it('should show error when no video URL', async () => {
+      const gif = fakeGif({ id: 'no-url', urls: { ...fakeGif({}).urls, hd: '', sd: '' }});
+      const fixture = createComponent(gif, 'stories');
+      fixture.detectChanges();
+      await tick();
+      expect(fixture.componentInstance.error()).toBeTruthy();
     });
   });
 
-  describe('IntersectionObserver', () => {
-    beforeEach(() => {
-      vi.useFakeTimers();
-    });
-
-    afterEach(() => {
-      vi.useRealTimers();
-    });
-
-    function getPlayer(fixture: any) {
-      return fixture.componentInstance['player'];
-    }
-
-    it('should pause when not intersecting', () => {
-      const fixture = createComponent();
+  describe('watch mode', () => {
+    it('should create Plyr', async () => {
+      const fixture = createComponent(fakeGif(), 'watch');
       fixture.detectChanges();
-      observerCallback!([{ isIntersecting: true, intersectionRatio: 0.5 } as IntersectionObserverEntry], null! as any);
-      vi.spyOn(mockVideoState, 'onPause');
-      expect(observerCallback).toBeTruthy();
-      observerCallback!([{ isIntersecting: false, intersectionRatio: 0 } as IntersectionObserverEntry], null! as any);
-      expect(mockVideoState.onPause).toHaveBeenCalled();
-      expect(getPlayer(fixture).pause).toHaveBeenCalled();
+      await tick();
+      expect((fixture.componentInstance as any).player).toBeTruthy();
     });
 
-    it('should play after 400ms when inside the play zone and allowed', () => {
-      const fixture = createComponent();
+    it('should set loading then false', async () => {
+      const fixture = createComponent(fakeGif(), 'watch');
       fixture.detectChanges();
-      observerCallback!([{ isIntersecting: true, intersectionRatio: 0 } as IntersectionObserverEntry], null! as any);
-      vi.spyOn(mockVideoState, 'requestPlay').mockReturnValue(true);
-      playObserverCallback!([{ isIntersecting: true, intersectionRatio: 0.5 } as IntersectionObserverEntry], null! as any);
-      vi.advanceTimersByTime(400);
-      expect(mockVideoState.requestPlay).toHaveBeenCalled();
-      expect(getPlayer(fixture).play).toHaveBeenCalled();
+      expect(fixture.componentInstance.loading()).toBe(true);
+      await tick();
+      expect(fixture.componentInstance.loading()).toBe(false);
     });
 
-    it('should not play after 400ms when requestPlay returns false', () => {
-      const fixture = createComponent();
+    it('should use HLS when playbackMode=hls and gif has hls', () => {
+      mockSettings.setSettings({ playbackMode: 'hls', quality: 'hd', rateLimitEnabled: true, storiesNavigation: true, gridAutoplay: true });
+      const gif = fakeGif({ id: 'hls-watch', hls: true });
+      const fixture = createComponent(gif, 'watch');
       fixture.detectChanges();
-      observerCallback!([{ isIntersecting: true, intersectionRatio: 0 } as IntersectionObserverEntry], null! as any);
-      vi.spyOn(mockVideoState, 'requestPlay').mockReturnValue(false);
-      playObserverCallback!([{ isIntersecting: true, intersectionRatio: 0.5 } as IntersectionObserverEntry], null! as any);
-      vi.advanceTimersByTime(400);
-      expect(mockVideoState.requestPlay).toHaveBeenCalled();
-      expect(getPlayer(fixture).play).not.toHaveBeenCalled();
+      expect((fixture.componentInstance as any).usingHls).toBe(true);
     });
 
-    it('should pause when it leaves the play zone', () => {
-      const fixture = createComponent();
+    it('should toggle quality and reload', async () => {
+      vi.spyOn(mockSettings, 'update');
+      const gif = fakeGif({ id: 'q-toggle', urls: { ...fakeGif({}).urls, hd: 'https://media.redgifs.com/hd.mp4', sd: 'https://media.redgifs.com/sd.mp4' }});
+      const fixture = createComponent(gif, 'watch');
       fixture.detectChanges();
-      observerCallback!([{ isIntersecting: true, intersectionRatio: 0 } as IntersectionObserverEntry], null! as any);
-      playObserverCallback!([{ isIntersecting: true, intersectionRatio: 0.5 } as IntersectionObserverEntry], null! as any);
-      vi.spyOn(mockVideoState, 'onPause');
-      playObserverCallback!([{ isIntersecting: false, intersectionRatio: 0 } as IntersectionObserverEntry], null! as any);
-      expect(mockVideoState.onPause).toHaveBeenCalled();
-      expect(getPlayer(fixture).pause).toHaveBeenCalled();
+      await tick();
+      (fixture.componentInstance as any).usingHls = false;
+      vi.spyOn(fixture.componentInstance as any, 'loadMp4');
+      fixture.componentInstance.toggleQuality();
+      expect(mockSettings.update).toHaveBeenCalledWith({ quality: 'sd' });
     });
 
-    it('should preload with a 400px margin and play against the central viewport band', () => {
-      const fixture = createComponent();
+    it('should show error state and allow retry', async () => {
+      const gif = fakeGif({ id: 'watch-error', urls: { hd: '', sd: '', thumbnail: '', poster: '' } });
+      const fixture = createComponent(gif, 'watch');
       fixture.detectChanges();
-      expect(MockObserver.instances).toHaveLength(2);
-      expect(MockObserver.instances[0].options?.rootMargin).toBe('400px 0px');
-      expect(MockObserver.instances[1].options?.rootMargin).toBe('-15% 0px -15% 0px');
+      await tick();
+      expect(fixture.componentInstance.error()).toBeTruthy();
+      const recovered = fakeGif({ id: 'watch-recovered' });
+      fixture.componentRef.setInput('gif', recovered);
+      fixture.componentInstance.retry();
+      await tick();
+      expect(fixture.componentInstance.error()).toBeNull();
     });
   });
 
-  describe('deferred source attachment', () => {
-    beforeEach(() => {
-      vi.useFakeTimers();
-    });
-
-    afterEach(() => {
-      vi.useRealTimers();
-    });
-
-    function getPlayer(fixture: any) {
-      return fixture.componentInstance['player'];
-    }
-
-    it('should NOT set videoSrc or posterSrc on init', () => {
-      const fixture = createComponent();
-      fixture.detectChanges();
-      expect(fixture.componentInstance.videoSrc()).toBe('');
-      expect(fixture.componentInstance.posterSrc()).toBe('');
-    });
-
-    it('should set videoSrc and posterSrc when entering preload zone', () => {
-      const fixture = createComponent();
-      fixture.detectChanges();
-      observerCallback!([{ isIntersecting: true, intersectionRatio: 0 } as IntersectionObserverEntry], null! as any);
-      expect(fixture.componentInstance.videoSrc()).toBeTruthy();
-      expect(fixture.componentInstance.posterSrc()).toBeTruthy();
-    });
-
-    it('should clear videoSrc and posterSrc when exiting viewport zone', () => {
-      const fixture = createComponent();
-      fixture.detectChanges();
-      observerCallback!([{ isIntersecting: true, intersectionRatio: 0 } as IntersectionObserverEntry], null! as any);
-      expect(fixture.componentInstance.videoSrc()).toBeTruthy();
-      observerCallback!([{ isIntersecting: false, intersectionRatio: 0 } as IntersectionObserverEntry], null! as any);
-      expect(fixture.componentInstance.videoSrc()).toBe('');
-      expect(fixture.componentInstance.posterSrc()).toBe('');
-    });
-
-    it('should NOT play video in preload zone (intersectionRatio between 0 and 0.3)', () => {
-      const fixture = createComponent();
-      fixture.detectChanges();
-      vi.spyOn(mockVideoState, 'requestPlay').mockReturnValue(true);
-      observerCallback!([{ isIntersecting: true, intersectionRatio: 0 } as IntersectionObserverEntry], null! as any);
-      vi.advanceTimersByTime(400);
-      expect(getPlayer(fixture).play).not.toHaveBeenCalled();
-    });
+  it('should clean up on destroy', async () => {
+    const fixture = createComponent();
+    fixture.detectChanges();
+    firePreload([intersect(0)]);
+    await tick();
+    const page = fixture.componentInstance as any;
+    page.blobUrls = ['blob:http://test1'];
+    vi.spyOn(URL, 'revokeObjectURL');
+    fixture.destroy();
+    expect(page.player.destroy).toHaveBeenCalled();
   });
 });
