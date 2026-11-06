@@ -1,9 +1,8 @@
-import { Component, viewChild, ElementRef, OnDestroy, inject, signal, input, output, computed, effect, ChangeDetectionStrategy } from '@angular/core';
+import { Component, viewChild, ElementRef, OnDestroy, inject, signal, input, computed, effect, ChangeDetectionStrategy } from '@angular/core';
 import { Router } from '@angular/router';
 import Plyr from 'plyr';
 import Hls from 'hls.js';
-import { Capacitor } from '@capacitor/core';
-import { SystemBars } from '@capacitor/core';
+import { Capacitor, SystemBars } from '@capacitor/core';
 import { CacheFragmentLoader } from '../../services/hls-cache-loader';
 import { Gif } from '../../models/gif.model';
 import { FavoritesService } from '../../services/favorites.service';
@@ -37,18 +36,21 @@ export class VideoPlayerComponent implements OnDestroy {
 
   private player?: Plyr;
   private hls?: Hls;
-  private observer?: IntersectionObserver;
+  private preloadObserver?: IntersectionObserver;
+  private playObserver?: IntersectionObserver;
   private playTimer?: ReturnType<typeof setTimeout>;
   private blobUrls: string[] = [];
-  protected readonly sourceAttached = signal(false);
+
+  private sourceAttached = false;
   protected readonly sourceReady = signal(false);
   protected readonly posterLoading = signal(true);
   private sourceGeneration = 0;
+  private sourceGifId: string | null = null;
   private lastGifId = '';
+  private inPlayZone = false;
+  private playRetries = 0;
   private usingHls = false;
-  private playStart = 0;
   private gridInitDone = false;
-  private pendingPlyrInit = false;
 
   readonly preloadStrategy = signal<'none' | 'metadata' | 'auto'>('none');
   readonly videoSrc = signal('');
@@ -57,20 +59,17 @@ export class VideoPlayerComponent implements OnDestroy {
   readonly error = signal<string | null>(null);
   readonly isFav = computed(() => this.favService.isFavorite(this.gif()?.id || ''));
   readonly hasHd = computed(() => !!this.gif()?.urls.hd);
-  readonly durationElapsed = output<{gifId: string; duration: number}>();
   readonly quality = computed(() => this.settings.get().quality);
   readonly playbackMode = computed(() => this.settings.get().playbackMode);
 
   constructor() {
     effect(() => {
       const gif = this.gif();
-      const mode = this.mode();
-      if (mode === 'grid') {
-        const thumb = gif?.urls?.thumbnail;
-        if (thumb) {
-          this.posterLoading.set(true);
-          this.posterSrc.set(thumb);
-        }
+      if (this.mode() !== 'grid') return;
+      const thumb = gif?.urls?.thumbnail;
+      if (thumb) {
+        this.posterLoading.set(true);
+        this.posterSrc.set(thumb);
       }
     });
 
@@ -80,12 +79,16 @@ export class VideoPlayerComponent implements OnDestroy {
       const mode = this.mode();
       if (!videoEl || !gif) return;
 
-      if (mode !== 'grid' && this.sourceAttached() && gif.id !== this.lastGifId) {
+      if (mode !== 'grid' && gif.id !== this.lastGifId && this.sourceAttached) {
         this.teardownPlayback();
       }
       this.lastGifId = gif.id;
 
       if (mode === 'stories') {
+        if (this.sourceGifId !== gif.id) {
+          this.releaseSource();
+          this.sourceGifId = gif.id;
+        }
         this.loading.set(true);
         this.error.set(null);
         this.startStoriesPlayback(gif, videoEl);
@@ -106,6 +109,17 @@ export class VideoPlayerComponent implements OnDestroy {
     });
 
     effect(() => {
+      if (this.mode() !== 'stories' || !this.sourceReady()) return;
+      const videoEl = this.videoRef()?.nativeElement;
+      const src = this.videoSrc();
+      if (!videoEl || !src) return;
+      videoEl.muted = true;
+      queueMicrotask(() => {
+        if (videoEl.isConnected) videoEl.play().catch(() => {});
+      });
+    });
+
+    effect(() => {
       const activeId = this.videoState.activeGifId();
       if (activeId && activeId !== this.gif()?.id) {
         this.player?.pause();
@@ -121,20 +135,19 @@ export class VideoPlayerComponent implements OnDestroy {
       if (gif.id === this.lastGifId) {
         this.loading.set(false);
       }
-    } else {
-      try {
-        this.sourceAttached.set(true);
-        this.preloadStrategy.set('metadata');
-        await this.applySource(gif, videoEl);
-        if (gif.id === this.lastGifId) {
-          this.loading.set(false);
-          videoEl.play().catch(() => {});
-        }
-      } catch {
-        if (gif.id === this.lastGifId) {
-          this.loading.set(false);
-          this.error.set('Failed to load video');
-        }
+      return;
+    }
+
+    try {
+      this.preloadStrategy.set('metadata');
+      await this.ensureSource();
+      if (gif.id === this.lastGifId) {
+        this.loading.set(false);
+      }
+    } catch {
+      if (gif.id === this.lastGifId) {
+        this.loading.set(false);
+        this.error.set('Failed to load video');
       }
     }
   }
@@ -144,16 +157,8 @@ export class VideoPlayerComponent implements OnDestroy {
 
     if (useHls) {
       this.usingHls = true;
-      this.player = new Plyr(videoEl, {
-        controls: ['play-large', 'play', 'progress', 'current-time', 'mute', 'volume', 'settings', 'pip', 'airplay', 'fullscreen'],
-        resetOnEnd: true,
-        hideControls: true,
-        clickToPlay: true,
-        iconUrl: '/assets/plyr/plyr.svg',
-      });
-      this.wirePlyrFsEvents();
-      this.player.on('ready', () => {
-        this.setupTracking();
+      this.createWatchPlyr(videoEl);
+      this.player!.on('ready', () => {
         this.loading.set(false);
       });
       await this.initHls(gif, videoEl);
@@ -161,20 +166,11 @@ export class VideoPlayerComponent implements OnDestroy {
     }
 
     try {
-      this.sourceAttached.set(true);
       this.preloadStrategy.set('auto');
       await this.applySource(gif, videoEl);
-      this.player = new Plyr(videoEl, {
-        controls: ['play-large', 'play', 'progress', 'current-time', 'mute', 'volume', 'settings', 'pip', 'airplay', 'fullscreen'],
-        resetOnEnd: true,
-        hideControls: true,
-        clickToPlay: true,
-        iconUrl: '/assets/plyr/plyr.svg',
-      });
-      this.wirePlyrFsEvents();
+      this.createWatchPlyr(videoEl);
       if (!videoEl.hasAttribute('poster')) videoEl.poster = this.posterSrc();
-      this.setupTracking();
-      this.player.on('ready', () => {
+      this.player!.on('ready', () => {
         this.player?.play();
         this.loading.set(false);
       });
@@ -182,6 +178,17 @@ export class VideoPlayerComponent implements OnDestroy {
       this.loading.set(false);
       this.error.set('Failed to load video');
     }
+  }
+
+  private createWatchPlyr(videoEl: HTMLVideoElement): void {
+    this.player = new Plyr(videoEl, {
+      controls: ['play-large', 'play', 'progress', 'current-time', 'mute', 'volume', 'settings', 'pip', 'airplay', 'fullscreen'],
+      resetOnEnd: true,
+      hideControls: true,
+      clickToPlay: true,
+      iconUrl: '/assets/plyr/plyr.svg',
+    });
+    this.wirePlyrFsEvents();
   }
 
   private createPlyr(videoEl: HTMLVideoElement): void {
@@ -193,17 +200,10 @@ export class VideoPlayerComponent implements OnDestroy {
       iconUrl: '/assets/plyr/plyr.svg',
     });
 
-    if (Capacitor.isNativePlatform()) {
-      this.player.on('enterfullscreen', () => {
-        SystemBars.hide().catch(() => {});
-      });
-      this.player.on('exitfullscreen', () => {
-        SystemBars.show().catch(() => {});
-      });
-    }
+    this.wirePlyrFsEvents();
 
     this.player.on('ready', () => {
-      if (this.sourceAttached() && videoEl && this.isElementVisible(videoEl)) {
+      if (this.sourceAttached && videoEl && this.isElementVisible(videoEl)) {
         if (this.videoState.requestPlay(this.gif().id)) {
           this.player?.play().catch(() => {});
         }
@@ -212,60 +212,73 @@ export class VideoPlayerComponent implements OnDestroy {
   }
 
   private initGridPlayer(videoEl: HTMLVideoElement): void {
-    this.observer = new IntersectionObserver(entries => {
-      entries.forEach(entry => {
-        if (document.fullscreenElement) return;
+    this.preloadObserver?.disconnect();
+    this.playObserver?.disconnect();
 
-        if (!this.player) {
-          if (!entry.isIntersecting || this.pendingPlyrInit) return;
-          this.pendingPlyrInit = true;
-          this.ensureSource().then(() => {
-            if (!this.player) this.createPlyr(videoEl);
-            this.pendingPlyrInit = false;
-          });
+    this.preloadObserver = new IntersectionObserver(entries => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          this.ensureSource()
+            .then(() => { if (!this.player) this.createPlyr(videoEl); })
+            .catch(() => {});
           return;
         }
 
         clearTimeout(this.playTimer);
-        if (entry.intersectionRatio >= 0.3) {
-          this.ensureSource().then(() => {
-            this.playTimer = setTimeout(() => {
-              if (this.player && this.videoState.requestPlay(this.gif().id)) {
-                this.player!.play().catch(() => {});
-              }
-            }, 400);
-          });
-        } else if (entry.isIntersecting) {
-          this.ensureSource();
-          this.videoState.onPause(this.gif().id);
-          this.player.pause();
+        this.inPlayZone = false;
+        this.videoState.onPause(this.gif().id);
+        this.player?.pause();
+        this.releaseSource();
+      });
+    }, { rootMargin: '400px 0px', threshold: 0 });
+    this.preloadObserver.observe(videoEl);
+
+    this.playObserver = new IntersectionObserver(entries => {
+      entries.forEach(entry => {
+        if (!this.player || document.fullscreenElement) return;
+
+        if (entry.isIntersecting) {
+          this.ensureSource()
+            .then(() => {
+              this.inPlayZone = true;
+              this.playRetries = 0;
+              this.schedulePlay();
+            })
+            .catch(() => {});
         } else {
+          this.inPlayZone = false;
+          clearTimeout(this.playTimer);
           this.videoState.onPause(this.gif().id);
-          this.player.pause();
-          this.releaseSource();
+          this.player?.pause();
         }
       });
-    }, { rootMargin: '400px 0px', threshold: [0, 0.3] });
-    this.observer.observe(videoEl);
+    }, { rootMargin: '-15% 0px -15% 0px', threshold: [0, 0.05, 0.1, 0.2, 0.3, 0.5, 0.75, 1] });
+    this.playObserver.observe(videoEl);
+  }
 
-    const rect = videoEl.getBoundingClientRect();
-    const inPreload = rect.top < window.innerHeight + 400 && rect.bottom > -400;
-    if (inPreload) {
-      this.ensureSource().then(() => {
-        if (!this.player) this.createPlyr(videoEl);
-      });
-    }
+  private schedulePlay(): void {
+    clearTimeout(this.playTimer);
+    this.playTimer = setTimeout(() => {
+      if (!this.inPlayZone || !this.player) return;
+      if (this.videoState.requestPlay(this.gif().id)) {
+        this.playRetries = 0;
+        this.player.play().catch(() => {});
+      } else if (this.playRetries++ < 10) {
+        this.schedulePlay();
+      }
+    }, 400);
   }
 
   private async ensureSource(): Promise<void> {
-    if (this.sourceAttached()) return;
-    this.sourceAttached.set(true);
+    if (this.sourceAttached) return;
+    this.sourceAttached = true;
     this.sourceReady.set(false);
     this.preloadStrategy.set('metadata');
     const gif = this.gif();
-    if (!gif) { this.sourceAttached.set(false); return; }
+    if (!gif) { this.sourceAttached = false; return; }
     const rawUrl = this.pickUrl(gif);
-    if (!rawUrl) { this.sourceAttached.set(false); throw new Error('No video URL'); }
+    if (!rawUrl) { this.sourceAttached = false; throw new Error('No video URL'); }
+    this.sourceGifId = gif.id;
     const thumb = gif.urls.thumbnail || '';
     const gen = this.sourceGeneration;
     await this.setMediaSources(rawUrl, thumb, gen);
@@ -275,18 +288,21 @@ export class VideoPlayerComponent implements OnDestroy {
   }
 
   private async applySource(gif: Gif, videoEl: HTMLVideoElement): Promise<void> {
+    this.sourceAttached = true;
+    this.sourceReady.set(false);
     const rawUrl = this.pickUrl(gif);
     if (!rawUrl) throw new Error('No video URL');
     const thumb = gif.urls.thumbnail || '';
     await this.setMediaSources(rawUrl, thumb, this.sourceGeneration);
+    this.sourceReady.set(true);
   }
 
   private async setMediaSources(rawUrl: string, thumb: string, gen: number): Promise<void> {
     if (Capacitor.isNativePlatform()) {
       const posterUrl = await this.mediaProxy.proxyImage(thumb);
-      if (this.sourceAttached() && gen === this.sourceGeneration) this.posterSrc.set(posterUrl);
+      if (this.sourceAttached && gen === this.sourceGeneration) this.posterSrc.set(posterUrl);
       const videoUrl = await this.mediaProxy.proxyVideoProgressive(rawUrl);
-      if (this.sourceAttached() && gen === this.sourceGeneration) {
+      if (this.sourceAttached && gen === this.sourceGeneration) {
         this.videoSrc.set(videoUrl);
         this.blobUrls.push(videoUrl);
       }
@@ -324,30 +340,40 @@ export class VideoPlayerComponent implements OnDestroy {
         }
       });
       this.hls.on(Hls.Events.ERROR, (_event, data) => {
-        if (data.fatal) {
-          this.usingHls = false;
-          this.hls?.destroy();
-          this.hls = undefined;
-          if (this.mode() !== 'grid') {
-            this.startStoriesPlayback(gif, videoEl).catch(() => {});
-          }
+        if (!data.fatal) return;
+        this.usingHls = false;
+        this.hls?.destroy();
+        this.hls = undefined;
+        if (this.mode() === 'stories') {
+          this.startStoriesPlayback(gif, videoEl).catch(() => {});
+        } else if (this.mode() === 'watch') {
+          this.loadMp4();
         }
       });
     } catch {
       this.usingHls = false;
-      if (this.mode() !== 'grid') {
+      if (this.mode() === 'stories') {
         await this.startStoriesPlayback(gif, videoEl);
+      } else if (this.mode() === 'watch') {
+        await this.loadMp4();
       }
     }
   }
 
   private releaseSource(): void {
-    if (!this.sourceAttached()) return;
-    this.sourceAttached.set(false);
+    if (!this.sourceAttached) return;
+    this.sourceAttached = false;
     this.sourceReady.set(false);
     this.sourceGeneration++;
     this.preloadStrategy.set('none');
     this.videoSrc.set('');
+    this.posterSrc.set('');
+    const videoEl = this.videoRef()?.nativeElement;
+    if (videoEl) {
+      videoEl.pause?.();
+      videoEl.removeAttribute('src');
+      if (typeof videoEl.load === 'function') videoEl.load();
+    }
     const urls = this.blobUrls;
     this.blobUrls = [];
     urls.forEach(url => this.mediaProxy.abortProgressiveStream(url));
@@ -377,21 +403,6 @@ export class VideoPlayerComponent implements OnDestroy {
     });
   }
 
-  private setupTracking(): void {
-    this.player?.on('play', () => { this.playStart = Date.now(); });
-    this.player?.on('pause', () => this.sendDuration());
-    this.player?.on('ended', () => this.sendDuration());
-  }
-
-  private sendDuration(): void {
-    if (this.playStart === 0) return;
-    const elapsed = Date.now() - this.playStart;
-    this.playStart = 0;
-    if (elapsed > 1000) {
-      this.durationElapsed.emit({ gifId: this.gif()?.id || '', duration: elapsed });
-    }
-  }
-
   toggleQuality(): void {
     if (this.mode() !== 'watch') return;
     const next = this.quality() === 'hd' ? 'sd' : 'hd';
@@ -413,7 +424,6 @@ export class VideoPlayerComponent implements OnDestroy {
     this.loading.set(true);
     this.error.set(null);
     try {
-      this.sourceAttached.set(true);
       this.preloadStrategy.set('auto');
       await this.applySource(gif, videoEl);
       this.loading.set(false);
@@ -429,7 +439,7 @@ export class VideoPlayerComponent implements OnDestroy {
     if (!gif) return;
     this.teardownPlayback();
     this.lastGifId = '';
-    this.sourceAttached.set(false);
+    this.sourceAttached = false;
     this.error.set(null);
     const videoEl = this.videoRef()?.nativeElement;
     if (!videoEl) return;
@@ -474,10 +484,13 @@ export class VideoPlayerComponent implements OnDestroy {
 
   ngOnDestroy(): void {
     clearTimeout(this.playTimer);
-    this.observer?.disconnect();
+    this.inPlayZone = false;
+    this.preloadObserver?.disconnect();
+    this.playObserver?.disconnect();
     this.player?.destroy();
     this.hls?.destroy();
     this.videoState.onPause(this.gif()?.id || '');
     this.releaseSource();
   }
 }
+

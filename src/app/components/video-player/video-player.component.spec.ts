@@ -41,14 +41,14 @@ const MockHls = vi.hoisted(function () {
 });
 vi.mock('hls.js', () => MockHls);
 
-let observerCallback: IntersectionObserverCallback | null;
+let observers: MockObserver[];
 class MockObserver {
   callback: IntersectionObserverCallback;
   options?: IntersectionObserverInit;
   constructor(cb: IntersectionObserverCallback, options?: IntersectionObserverInit) {
     this.callback = cb;
     this.options = options;
-    observerCallback = cb;
+    observers.push(this);
     this.observe = vi.fn();
     this.unobserve = vi.fn();
     this.disconnect = vi.fn();
@@ -56,6 +56,12 @@ class MockObserver {
   }
 }
 vi.stubGlobal('IntersectionObserver', MockObserver as any);
+
+const intersect = (ratio = 0.5) => ({ isIntersecting: true, intersectionRatio: ratio } as IntersectionObserverEntry);
+const hidden = () => ({ isIntersecting: false, intersectionRatio: 0 } as IntersectionObserverEntry);
+const firePreload = (entries: IntersectionObserverEntry[]) => observers[0]?.callback(entries, null as any);
+const firePlay = (entries: IntersectionObserverEntry[]) => observers[1]?.callback(entries, null as any);
+const tick = () => new Promise(r => setTimeout(r));
 
 const mockProxyVideoProgressive = vi.fn(function (url: string) { return Promise.resolve(url); });
 const mockProxyM3u8 = vi.fn(function (url: string, _token: string) { return Promise.resolve('blob:mock-m3u8'); });
@@ -96,6 +102,7 @@ describe('VideoPlayerComponent', () => {
   afterAll(() => { vi.unstubAllGlobals(); });
 
   function createComponent(gif = fakeGif(), mode: 'grid' | 'stories' | 'watch' = 'grid') {
+    observers = [];
     const fixture = TestBed.createComponent(VideoPlayerComponent);
     fixture.componentRef.setInput('gif', gif);
     fixture.componentRef.setInput('mode', mode);
@@ -112,8 +119,8 @@ describe('VideoPlayerComponent', () => {
       const gif = fakeGif({ urls: { ...fakeGif({}).urls, thumbnail: 'https://media.redgifs.com/thumb.jpg', sd: 'https://media.redgifs.com/test.mp4', hd: 'https://media.redgifs.com/test-hd.mp4' }});
       const fixture = createComponent(gif);
       fixture.detectChanges();
-      observerCallback!([{ isIntersecting: true, intersectionRatio: 0 } as IntersectionObserverEntry], null! as any);
-      await new Promise(r => setTimeout(r));
+      firePreload([intersect(0)]);
+      await tick();
       expect(fixture.componentInstance.posterSrc()).toBe('/cdn/thumb.jpg');
       expect(fixture.componentInstance.videoSrc()).toBe('/cdn/test-hd.mp4');
     });
@@ -123,8 +130,8 @@ describe('VideoPlayerComponent', () => {
       const gif = fakeGif({ urls: { ...fakeGif({}).urls, sd: 'https://media.redgifs.com/sd.mp4', hd: 'https://media.redgifs.com/hd.mp4' }});
       const fixture = createComponent(gif);
       fixture.detectChanges();
-      observerCallback!([{ isIntersecting: true, intersectionRatio: 0 } as IntersectionObserverEntry], null! as any);
-      await new Promise(r => setTimeout(r));
+      firePreload([intersect(0)]);
+      await tick();
       expect(fixture.componentInstance.videoSrc()).toBe('/cdn/sd.mp4');
     });
 
@@ -149,29 +156,33 @@ describe('VideoPlayerComponent', () => {
       expect(routerSpy).toHaveBeenCalledWith(['/creator', 'vid-creator']);
     });
 
-    it('should create Plyr in grid mode', () => {
+    it('should create Plyr in grid mode after entering the preload zone', async () => {
       const fixture = createComponent();
       fixture.detectChanges();
+      firePreload([intersect(0)]);
+      await tick();
       expect((fixture.componentInstance as any).player).toBeTruthy();
     });
 
-    it('should pause when not intersecting', () => {
+    it('should pause when leaving the preload zone', async () => {
       const fixture = createComponent();
       fixture.detectChanges();
+      firePreload([intersect(0)]);
+      await tick();
       vi.spyOn(mockVideoState, 'onPause');
-      observerCallback!([{ isIntersecting: false, intersectionRatio: 0 } as IntersectionObserverEntry], null! as any);
+      firePreload([hidden()]);
       expect((fixture.componentInstance as any).player.pause).toHaveBeenCalled();
     });
 
-    it('should play after 400ms when intersecting and allowed', () => {
-      vi.useFakeTimers();
+    it('should play after 400ms when in the play zone and allowed', async () => {
       const fixture = createComponent();
       fixture.detectChanges();
+      firePreload([intersect(0)]);
+      await tick();
       vi.spyOn(mockVideoState, 'requestPlay').mockReturnValue(true);
-      observerCallback!([{ isIntersecting: true, intersectionRatio: 0.5 } as IntersectionObserverEntry], null! as any);
-      vi.advanceTimersByTime(400);
+      firePlay([intersect(0.5)]);
+      await new Promise(r => setTimeout(r, 450));
       expect((fixture.componentInstance as any).player.play).toHaveBeenCalled();
-      vi.useRealTimers();
     });
 
     it('should NOT set videoSrc on init (deferred)', () => {
@@ -183,16 +194,17 @@ describe('VideoPlayerComponent', () => {
     it('should set videoSrc when entering preload zone', async () => {
       const fixture = createComponent();
       fixture.detectChanges();
-      observerCallback!([{ isIntersecting: true, intersectionRatio: 0 } as IntersectionObserverEntry], null! as any);
-      await new Promise(r => setTimeout(r));
+      firePreload([intersect(0)]);
+      await tick();
       expect(fixture.componentInstance.videoSrc()).toBeTruthy();
     });
   });
 
   describe('stories mode', () => {
-    it('should NOT create Plyr', () => {
+    it('should NOT create Plyr', async () => {
       const fixture = createComponent(fakeGif(), 'stories');
       fixture.detectChanges();
+      await tick();
       expect((fixture.componentInstance as any).player).toBeUndefined();
     });
 
@@ -201,7 +213,7 @@ describe('VideoPlayerComponent', () => {
       const gif = fakeGif({ urls: { ...fakeGif({}).urls, thumbnail: 'https://media.redgifs.com/thumb.jpg', sd: 'https://media.redgifs.com/sd.mp4', hd: 'https://media.redgifs.com/hd.mp4' }});
       const fixture = createComponent(gif, 'stories');
       fixture.detectChanges();
-      await new Promise(r => setTimeout(r));
+      await tick();
       expect(fixture.componentInstance.posterSrc()).toBe('/cdn/thumb.jpg');
       expect(fixture.componentInstance.videoSrc()).toBe('/cdn/hd.mp4');
     });
@@ -212,11 +224,11 @@ describe('VideoPlayerComponent', () => {
       mockSettings.setSettings({ playbackMode: 'mp4', quality: 'hd', rateLimitEnabled: true, storiesNavigation: true, gridAutoplay: true });
       const fixture = createComponent(gif1, 'stories');
       fixture.detectChanges();
-      await new Promise(r => setTimeout(r));
+      await tick();
       expect(fixture.componentInstance.videoSrc()).toBe('/cdn/story1.mp4');
       fixture.componentRef.setInput('gif', gif2);
       fixture.detectChanges();
-      await new Promise(r => setTimeout(r));
+      await tick();
       expect(fixture.componentInstance.videoSrc()).toBe('/cdn/story2.mp4');
     });
 
@@ -225,25 +237,15 @@ describe('VideoPlayerComponent', () => {
       const fixture = createComponent(gif, 'stories');
       fixture.detectChanges();
       expect(fixture.componentInstance.loading()).toBe(true);
-      await new Promise(r => setTimeout(r));
+      await tick();
       expect(fixture.componentInstance.loading()).toBe(false);
-    });
-
-    it('should call play after source attached', async () => {
-      const gif = fakeGif({ id: 'story-play' });
-      const fixture = createComponent(gif, 'stories');
-      const videoEl = (fixture.componentInstance as any).videoRef()?.nativeElement;
-      vi.spyOn(videoEl, 'play').mockResolvedValue(undefined);
-      fixture.detectChanges();
-      await new Promise(r => setTimeout(r));
-      expect(videoEl.play).toHaveBeenCalled();
     });
 
     it('should show error when no video URL', async () => {
       const gif = fakeGif({ id: 'no-url', urls: { ...fakeGif({}).urls, hd: '', sd: '' }});
       const fixture = createComponent(gif, 'stories');
       fixture.detectChanges();
-      await new Promise(r => setTimeout(r));
+      await tick();
       expect(fixture.componentInstance.error()).toBeTruthy();
     });
   });
@@ -252,7 +254,7 @@ describe('VideoPlayerComponent', () => {
     it('should create Plyr', async () => {
       const fixture = createComponent(fakeGif(), 'watch');
       fixture.detectChanges();
-      await new Promise(r => setTimeout(r));
+      await tick();
       expect((fixture.componentInstance as any).player).toBeTruthy();
     });
 
@@ -260,7 +262,7 @@ describe('VideoPlayerComponent', () => {
       const fixture = createComponent(fakeGif(), 'watch');
       fixture.detectChanges();
       expect(fixture.componentInstance.loading()).toBe(true);
-      await new Promise(r => setTimeout(r));
+      await tick();
       expect(fixture.componentInstance.loading()).toBe(false);
     });
 
@@ -277,7 +279,7 @@ describe('VideoPlayerComponent', () => {
       const gif = fakeGif({ id: 'q-toggle', urls: { ...fakeGif({}).urls, hd: 'https://media.redgifs.com/hd.mp4', sd: 'https://media.redgifs.com/sd.mp4' }});
       const fixture = createComponent(gif, 'watch');
       fixture.detectChanges();
-      await new Promise(r => setTimeout(r));
+      await tick();
       (fixture.componentInstance as any).usingHls = false;
       vi.spyOn(fixture.componentInstance as any, 'loadMp4');
       fixture.componentInstance.toggleQuality();
@@ -288,19 +290,21 @@ describe('VideoPlayerComponent', () => {
       const gif = fakeGif({ id: 'watch-error', urls: { hd: '', sd: '', thumbnail: '', poster: '' } });
       const fixture = createComponent(gif, 'watch');
       fixture.detectChanges();
-      await new Promise(r => setTimeout(r));
+      await tick();
       expect(fixture.componentInstance.error()).toBeTruthy();
       const recovered = fakeGif({ id: 'watch-recovered' });
       fixture.componentRef.setInput('gif', recovered);
       fixture.componentInstance.retry();
-      await new Promise(r => setTimeout(r));
+      await tick();
       expect(fixture.componentInstance.error()).toBeNull();
     });
   });
 
-  it('should clean up on destroy', () => {
+  it('should clean up on destroy', async () => {
     const fixture = createComponent();
     fixture.detectChanges();
+    firePreload([intersect(0)]);
+    await tick();
     const page = fixture.componentInstance as any;
     page.blobUrls = ['blob:http://test1'];
     vi.spyOn(URL, 'revokeObjectURL');

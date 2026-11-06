@@ -10,7 +10,6 @@
         @if (posterLoading() || !posterSrc()) {
           <div class="skeleton"></div>
           <app-skeleton-card />
-
         }
         @if (posterSrc()) {
           <img
@@ -23,14 +22,11 @@
         }
       </div>
     }
-    <!-- @else{
-        <app-skeleton-card />
-    } -->
 
     <video
       #videoPlayer
-      [src]="videoSrc()"
-      attr.poster="{{posterSrc()}}"
+      [attr.src]="videoSrc() || null"
+      [attr.poster]="posterSrc() || null"
       playsinline
       muted
       [attr.preload]="preloadStrategy()"

@@ -28,6 +28,8 @@ describe('RedgifsApiService', () => {
     httpCtrl = TestBed.inject(HttpTestingController);
   }
 
+  const TOP_WEEK_PATH = '/api/v2/gifs/search?order=top7&count=30&page=1&type=g';
+
   function flushAuth(token = 'test-token') {
     const req = httpCtrl.expectOne('/api/v2/auth/temporary');
     expect(req.request.method).toBe('GET');
@@ -43,68 +45,136 @@ describe('RedgifsApiService', () => {
 
   it('should request auth token on first request', () => {
     initService();
-    service.getTrendingGifs().subscribe();
+    service.getTopThisWeek().subscribe();
     flushAuth();
-    httpCtrl.expectOne('/api/v2/explore/trending-gifs').flush({ gifs: [] });
+    httpCtrl.expectOne(TOP_WEEK_PATH).flush({ gifs: [] });
   });
 
   it('should reuse token for subsequent requests', () => {
     initService();
-    service.getTrendingGifs().subscribe();
+    service.getTopThisWeek().subscribe();
     flushAuth();
-    httpCtrl.expectOne('/api/v2/explore/trending-gifs').flush({ gifs: [{ id: 'first' }] });
+    httpCtrl.expectOne(TOP_WEEK_PATH).flush({ gifs: [{ id: 'first' }] });
 
-    service.getTrendingGifs().subscribe();
+    service.getTopThisWeek().subscribe();
     httpCtrl.expectNone('/api/v2/auth/temporary');
-    httpCtrl.expectOne('/api/v2/explore/trending-gifs').flush({ gifs: [{ id: 'second' }] });
+    httpCtrl.expectOne(TOP_WEEK_PATH).flush({ gifs: [{ id: 'second' }] });
+  });
+
+  it('should share one auth request between concurrent callers', () => {
+    initService();
+    service.getTopThisWeek().subscribe();
+    service.getTopThisWeek().subscribe();
+    httpCtrl.expectOne('/api/v2/auth/temporary').flush({ token: 'shared-token' });
+    const requests = httpCtrl.match(TOP_WEEK_PATH);
+    expect(requests.length).toBe(2);
+    requests.forEach(r => r.flush({ gifs: [] }));
   });
 
   it('should re-auth when token expires', () => {
     initService();
-    service.getTrendingGifs().subscribe();
+    service.getTopThisWeek().subscribe();
     flushAuth('first-token');
-    httpCtrl.expectOne('/api/v2/explore/trending-gifs').flush({ gifs: [{ id: 'ok' }] });
+    httpCtrl.expectOne(TOP_WEEK_PATH).flush({ gifs: [{ id: 'ok' }] });
 
     (service as any).tokenExpiry = Date.now() - 1000;
 
     let result: any;
-    service.getTrendingGifs().subscribe(r => result = r);
+    service.getTopThisWeek().subscribe(r => result = r);
     flushAuth('second-token');
-    const req = httpCtrl.expectOne('/api/v2/explore/trending-gifs');
+    const req = httpCtrl.expectOne(TOP_WEEK_PATH);
     expect(req.request.headers.get('Authorization')).toBe('Bearer second-token');
     req.flush({ gifs: [{ id: 'refreshed' }] });
-    expect(result[0].id).toBe('refreshed');
+    expect(result.gifs[0].id).toBe('refreshed');
   });
 
   it('should emit error when auth fails', () => {
     initService();
     let error: any;
-    service.getTrendingGifs().subscribe({ error: err => error = err });
+    service.getTopThisWeek().subscribe({ error: err => error = err });
     httpCtrl.expectOne('/api/v2/auth/temporary')
       .flush('Unauthorized', { status: 401, statusText: 'Unauthorized' });
     expect(error.message).toBe('Auth failed');
   });
 
+  it('should respect the rate limiter gap before re-authenticating', fakeAsync(() => {
+    initService();
+    (TestBed.inject(SettingsService) as any).update({ rateLimitEnabled: true });
+
+    service.getTopThisWeek().subscribe();
+    httpCtrl.expectOne('/api/v2/auth/temporary').flush({ token: 'first-token' });
+    tick(1000);
+    httpCtrl.expectOne(TOP_WEEK_PATH).flush({ gifs: [] });
+
+    (service as any).tokenExpiry = Date.now() - 1;
+
+    service.getTopThisWeek().subscribe();
+    expect(httpCtrl.match('/api/v2/auth/temporary').length).toBe(0);
+
+    tick(1000);
+    const authRequests = httpCtrl.match('/api/v2/auth/temporary');
+    expect(authRequests.length).toBe(1);
+    authRequests[0].flush({ token: 'second-token' });
+
+    tick(2000);
+    httpCtrl.expectOne(TOP_WEEK_PATH).flush({ gifs: [] });
+    expect(service.getToken()).toBe('second-token');
+  }));
+
+  it('should share a single queued auth request between concurrent callers', fakeAsync(() => {
+    initService();
+    (TestBed.inject(SettingsService) as any).update({ rateLimitEnabled: true });
+
+    service.getTopThisWeek().subscribe();
+    service.getTopThisWeek().subscribe();
+
+    const authRequests = httpCtrl.match('/api/v2/auth/temporary');
+    expect(authRequests.length).toBe(1);
+    authRequests[0].flush({ token: 'shared-token' });
+
+    tick(2000);
+    for (const req of httpCtrl.match(TOP_WEEK_PATH)) {
+      req.flush({ gifs: [] });
+    }
+    tick(5000);
+  }));
+
+  it('should retry auth on 429 with Retry-After', fakeAsync(() => {
+    initService();
+    (TestBed.inject(SettingsService) as any).update({ rateLimitEnabled: true });
+
+    service.getTopThisWeek().subscribe();
+    tick(0);
+    httpCtrl.expectOne('/api/v2/auth/temporary')
+      .flush('Rate limited', { status: 429, statusText: 'Too Many Requests', headers: { 'Retry-After': '0' } });
+
+    tick(2000);
+    httpCtrl.expectOne('/api/v2/auth/temporary').flush({ token: 'retry-token' });
+    tick(2000);
+    httpCtrl.expectOne(TOP_WEEK_PATH).flush({ gifs: [] });
+
+    expect(service.getToken()).toBe('retry-token');
+  }));
+
+  it('should stop retrying auth 429 after MAX_RETRIES and reject', fakeAsync(() => {
+    initService();
+    (TestBed.inject(SettingsService) as any).update({ rateLimitEnabled: true });
+
+    let error: any;
+    service.getTopThisWeek().subscribe({ error: err => error = err });
+    tick(0);
+
+    for (let i = 0; i < 4; i++) {
+      httpCtrl.expectOne('/api/v2/auth/temporary')
+        .flush('Rate limited', { status: 429, statusText: 'Too Many Requests', headers: { 'Retry-After': '0' } });
+      tick(3000);
+    }
+
+    expect(error.message).toBe('Auth failed');
+  }));
+
   // ── GET endpoints ──────────────────────────────────────────────
 
-  it('should get trending gifs', () => {
-    initService();
-    const mockGifs = [{ id: 'gif-1', userName: 'u1' }, { id: 'gif-2', userName: 'u2' }];
-    let result: any;
-    service.getTrendingGifs().subscribe(r => result = r);
-    flushAuth();
-    httpCtrl.expectOne('/api/v2/explore/trending-gifs').flush({ gifs: mockGifs });
-    expect(result).toEqual(mockGifs);
-  });
-
-  it('should get trending images', () => {
-    initService();
-    let result: any;
-    service.getTrendingImages().subscribe(r => result = r);
-    flushAuth();
-    httpCtrl.expectOne('/api/v2/explore/trending-images').flush({ gifs: [{ id: 'img-1' }] });
-    expect(result[0].id).toBe('img-1');
-  });
 
   it('should search gifs with query params', () => {
     initService();
@@ -202,9 +272,9 @@ describe('RedgifsApiService', () => {
 
   it('should get niche gifs with params', () => {
     initService();
-    service.getNicheGifs('niche-1', 'trending', 20, 1).subscribe();
+    service.getNicheGifs('niche-1', '', 20, 1).subscribe();
     flushAuth();
-    httpCtrl.expectOne('/api/v2/niches/niche-1/gifs?order=trending&count=20&page=1').flush({ gifs: [] });
+    httpCtrl.expectOne('/api/v2/niches/niche-1/gifs?count=20&page=1').flush({ gifs: [] });
   });
 
   it('should search niches', () => {
@@ -258,33 +328,11 @@ describe('RedgifsApiService', () => {
       .flush({ items: [], page: 1, pages: 1, total: 0 });
   });
 
-  it('should refresh gifs', () => {
+  it('should pass a supported niche order when provided', () => {
     initService();
-    service.refreshGifs(['gif-1', 'gif-2'], ['user1']).subscribe();
+    service.getNicheGifs('niche-1', 'top', 20, 1).subscribe();
     flushAuth();
-    httpCtrl.expectOne('/api/v2/gifs?ids=gif-1,gif-2&users=user1').flush({});
-  });
-
-  // ── POST endpoints ─────────────────────────────────────────────
-
-  it('should track content viewed', () => {
-    initService();
-    service.trackContentViewed('gif-1').subscribe();
-    flushAuth();
-    const req = httpCtrl.expectOne('/api/v2/metrics/gifs');
-    expect(req.request.method).toBe('POST');
-    expect(req.request.body).toEqual({ gif: 'gif-1', event: 'viewed', client: 'redgaze-ionic/1.0' });
-    req.flush({});
-  });
-
-  it('should track viewed duration', () => {
-    initService();
-    service.trackViewedDuration('gif-1', 5000).subscribe();
-    flushAuth();
-    const req = httpCtrl.expectOne('/api/v2/metrics/gifs');
-    expect(req.request.method).toBe('POST');
-    expect(req.request.body).toEqual({ gif: 'gif-1', event: 'duration', duration: 5000, client: 'redgaze-ionic/1.0' });
-    req.flush({});
+    httpCtrl.expectOne('/api/v2/niches/niche-1/gifs?count=20&page=1&order=top').flush({ gifs: [] });
   });
 
   // ── Retry logic ────────────────────────────────────────────────
@@ -294,31 +342,101 @@ describe('RedgifsApiService', () => {
     (TestBed.inject(SettingsService) as any).update({ rateLimitEnabled: true });
 
     let result: any;
-    service.getTrendingGifs().subscribe(r => result = r);
+    service.getTopThisWeek().subscribe(r => result = r);
     flushAuth();
-    tick(); // flush initial waitForSlot + request
+    tick(2000); // flush initial waitForSlot + request
 
-    httpCtrl.expectOne('/api/v2/explore/trending-gifs')
+    httpCtrl.expectOne(TOP_WEEK_PATH)
       .flush('Rate limited', { status: 429, statusText: 'Too Many Requests', headers: { 'Retry-After': '0' } });
 
     tick(2000); // flush backoff timer + retry
 
-    httpCtrl.expectOne('/api/v2/explore/trending-gifs').flush({ gifs: [{ id: 'retried' }] });
-    expect(result[0].id).toBe('retried');
+    httpCtrl.expectOne(TOP_WEEK_PATH).flush({ gifs: [{ id: 'retried' }] });
+    expect(result.gifs[0].id).toBe('retried');
+  }));
+
+  it('should honour the delay carried in the RateLimited body', fakeAsync(() => {
+    initService();
+    (TestBed.inject(SettingsService) as any).update({ rateLimitEnabled: true });
+
+    service.getTopThisWeek().subscribe(() => {});
+    flushAuth();
+    tick(2000);
+
+    httpCtrl.expectOne(TOP_WEEK_PATH).flush(
+      { error: { code: 'RateLimited', message: 'Too many requests, please retry later.', status: 429, delay: 4000, subject: '2a06:98c0:3600:0|gif-search|498307' } },
+      { status: 429, statusText: 'Too Many Requests' }
+    );
+
+    tick(3000);
+    httpCtrl.expectNone(TOP_WEEK_PATH);
+
+    tick(2000);
+    httpCtrl.expectOne(TOP_WEEK_PATH).flush({ gifs: [] });
+  }));
+
+  it('should fail fast when RedGIFs asks for a longer wait than we will retry', fakeAsync(() => {
+    initService();
+    (TestBed.inject(SettingsService) as any).update({ rateLimitEnabled: true });
+
+    let error: any;
+    service.getTopThisWeek().subscribe({ error: err => error = err });
+    flushAuth();
+    tick(2000);
+
+    httpCtrl.expectOne(TOP_WEEK_PATH).flush(
+      { error: { code: 'RateLimited', message: 'Too many requests, please retry later.', status: 429, delay: 416000, subject: '2a06:98c0:3600:0|niche-gifs|498307' } },
+      { status: 429, statusText: 'Too Many Requests' }
+    );
+
+    tick(2000);
+    httpCtrl.expectNone(TOP_WEEK_PATH);
+    expect(error.status).toBe(429);
+  }));
+
+  it('should stop retrying 429 after MAX_RETRIES and emit the error', fakeAsync(() => {
+    initService();
+    (TestBed.inject(SettingsService) as any).update({ rateLimitEnabled: true });
+
+    let error: any;
+    service.getTopThisWeek().subscribe({ error: err => error = err });
+    flushAuth();
+    tick(2000);
+
+    for (let i = 0; i < 4; i++) {
+      httpCtrl.expectOne(TOP_WEEK_PATH)
+        .flush('Rate limited', { status: 429, statusText: 'Too Many Requests', headers: { 'Retry-After': '0' } });
+      tick(2000);
+    }
+
+    expect(error.status).toBe(429);
   }));
 
   it('should retry on 401 with token refresh', () => {
     initService();
     let result: any;
-    service.getTrendingGifs().subscribe(r => result = r);
+    service.getTopThisWeek().subscribe(r => result = r);
     flushAuth('first-token');
-    httpCtrl.expectOne('/api/v2/explore/trending-gifs')
+    httpCtrl.expectOne(TOP_WEEK_PATH)
       .flush('Unauthorized', { status: 401, statusText: 'Unauthorized' });
     flushAuth('refreshed-token');
-    const retryReq = httpCtrl.expectOne('/api/v2/explore/trending-gifs');
+    const retryReq = httpCtrl.expectOne(TOP_WEEK_PATH);
     expect(retryReq.request.headers.get('Authorization')).toBe('Bearer refreshed-token');
     retryReq.flush({ gifs: [{ id: 'refreshed' }] });
-    expect(result[0].id).toBe('refreshed');
+    expect(result.gifs[0].id).toBe('refreshed');
+  });
+
+  it('should stop retrying 401 after one re-auth and emit the error', () => {
+    initService();
+    let error: any;
+    service.getTopThisWeek().subscribe({ error: err => error = err });
+    flushAuth('first-token');
+    httpCtrl.expectOne(TOP_WEEK_PATH)
+      .flush('Unauthorized', { status: 401, statusText: 'Unauthorized' });
+    flushAuth('second-token');
+    httpCtrl.expectOne(TOP_WEEK_PATH)
+      .flush('Unauthorized', { status: 401, statusText: 'Unauthorized' });
+    expect(error.status).toBe(401);
   });
 
   // ── Caching via localStorage ───────────────────────────────────
@@ -383,20 +501,26 @@ describe('RedgifsApiService', () => {
   it('should get/set token from memory', () => {
     initService();
     expect(service.getToken()).toBeNull();
-    service.getTrendingGifs().subscribe();
+    service.getTopThisWeek().subscribe();
     flushAuth('mem-token');
-    httpCtrl.expectOne('/api/v2/explore/trending-gifs').flush({ gifs: [] });
+    httpCtrl.expectOne(TOP_WEEK_PATH).flush({ gifs: [] });
     expect(service.getToken()).toBe('mem-token');
   });
 
-  it('should resolve ensureAuthToken promise', fakeAsync(() => {
+  it('should resolve ensureAuthToken promise', async () => {
     initService();
-    let resolved: any;
-    service.ensureAuthToken().then(t => resolved = t);
+    const tokenPromise = service.ensureAuthToken();
     flushAuth('promise-token');
-    tick();
-    expect(resolved).toBe('promise-token');
-  }));
+    await expect(tokenPromise).resolves.toBe('promise-token');
+  });
+
+  it('should reject ensureAuthToken when auth fails', async () => {
+    initService();
+    const tokenPromise = service.ensureAuthToken();
+    httpCtrl.expectOne('/api/v2/auth/temporary')
+      .flush('Unauthorized', { status: 401, statusText: 'Unauthorized' });
+    await expect(tokenPromise).rejects.toThrow('Auth failed');
+  });
 
   // ── cachedMediaUrl ──────────────────────────────────────────────
 
@@ -512,21 +636,5 @@ describe('RedgifsApiService', () => {
     initService();
     localStorage.removeItem('redgifs_trending_niches');
     expect(service.getCachedTrendingNiches()).toEqual([]);
-  });
-
-  it('should getTopThisWeekLegacy', () => {
-    initService();
-    service.getTopThisWeekLegacy().subscribe();
-    flushAuth();
-    httpCtrl.expectOne('/api/v2/explore/top-this-week').flush({ gifs: [] });
-  });
-
-  it('should emit error on non-401 POST error after retry', () => {
-    initService();
-    let error: any;
-    service.trackContentViewed('gif-1').subscribe({ error: err => error = err });
-    flushAuth();
-    httpCtrl.expectOne('/api/v2/metrics/gifs').flush('Server Error', { status: 500, statusText: 'Server Error' });
-    expect(error).toBeTruthy();
   });
 });

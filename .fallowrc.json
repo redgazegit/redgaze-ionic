@@ -1,10 +1,10 @@
 {
   "$schema": "https://raw.githubusercontent.com/fallow-rs/fallow/main/schema.json",
   "entry": ["src/index.{ts,tsx,js,jsx}", "src/main.{ts,tsx,js,jsx}"],
-  "ignorePatterns": ["**/testing/**"],
+  "ignorePatterns": ["**/testing/**", "_source/**"],
   "duplicates": {
     "minOccurrences": 3,
-    "ignore": ["**/testing/**"]
+    "ignore": ["**/testing/**", "_source/**"]
   },
   "rules": {
     "unused-dependencies": "warn"

@@ -6,6 +6,7 @@ import { RedgifsApiService } from '../../services/redgifs-api.service';
 import { SettingsService } from '../../services/settings.service';
 import { WatchQueueService } from '../../services/watch-queue.service';
 import { creatorFeedGenerator } from '../../services/feed-generators';
+import { navigateToGif } from '../../services/gif-navigation';
 import { Gif, User } from '../../models/gif.model';
 import { IonAvatar, IonBackButton, IonBadge, IonButton, IonButtons, IonChip, IonContent, IonHeader, IonIcon, IonInfiniteScroll, IonInfiniteScrollContent, IonItem, IonLabel, IonNote, IonTitle, IonToolbar } from '@ionic/angular/standalone';
 import { DecimalPipe, DatePipe } from '@angular/common';
@@ -61,7 +62,7 @@ export class CreatorDetailPage {
     ),
     initialPageParam: 1,
     getNextPageParam: lastPage => lastPage.page < lastPage.pages ? lastPage.page + 1 : undefined,
-    enabled: this.username() !== '',
+    enabled: this.username() !== '' && this.userQuery.isSuccess(),
     staleTime: 1000 * 60 * 2,
   }));
 
@@ -110,12 +111,11 @@ export class CreatorDetailPage {
   }
 
   onCardClick(gifId: string, index: number): void {
-    if (this.ss.get().storiesNavigation) {
-      this.watchQueue.setQueue(this.gifs(), index, creatorFeedGenerator(this.api, this.username(), this.sortOrder()));
-      this.router.navigate(['/stories', gifId]);
-    } else {
-      this.router.navigate(['/watch', gifId]);
-    }
+    navigateToGif(
+      { router: this.router, settings: this.ss, queue: this.watchQueue },
+      gifId, index, this.gifs(),
+      creatorFeedGenerator(this.api, this.username(), this.sortOrder()),
+    );
   }
 
   onCreatorClick(username: string): void {

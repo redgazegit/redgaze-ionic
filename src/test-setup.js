@@ -4,6 +4,25 @@ import 'zone.js/plugins/sync-test';
 import 'zone.js/plugins/proxy';
 import 'zone.js/testing';
 
+// Zone.js installs a MutationObserver wrapper whose instances do not implement
+// observe()/disconnect() under happy-dom, which breaks Ionic web components
+// (ion-toggle, ion-input, ...) during render.
+try {
+  const probe = new globalThis.MutationObserver(() => {});
+  if (typeof probe.observe !== 'function' || typeof probe.disconnect !== 'function') {
+    throw new Error('incomplete MutationObserver implementation');
+  }
+} catch {
+  globalThis.MutationObserver = class {
+    constructor(callback) {
+      this.callback = callback;
+    }
+    observe() {}
+    disconnect() {}
+    takeRecords() { return []; }
+  };
+}
+
 /**
  * Patch Vitest's describe/test/beforeEach/afterEach functions so test code
  * always runs in a testZone (ProxyZone).

@@ -1,6 +1,7 @@
 // Mock service implementations for testing
 import { signal } from '@angular/core';
 import { Gif } from '../models/gif.model';
+import { AppSettings } from '../services/settings.service';
 import { of } from 'rxjs';
 
 export class MockFavoritesService {
@@ -36,9 +37,9 @@ export class MockFavoritesService {
 }
 
 export class MockSettingsService {
-  private _settings = {
-    playbackMode: 'mp4' as const,
-    quality: 'hd' as const,
+  private _settings: AppSettings = {
+    playbackMode: 'mp4',
+    quality: 'hd',
     rateLimitEnabled: true,
     storiesNavigation: true,
     gridAutoplay: true,
@@ -48,11 +49,11 @@ export class MockSettingsService {
 
   get = () => this._settings;
 
-  update = (partial: Partial<typeof this._settings>): void => {
+  update = (partial: Partial<AppSettings>): void => {
     this._settings = { ...this._settings, ...partial };
   };
 
-  setSettings(settings: typeof this._settings) {
+  setSettings(settings: AppSettings) {
     this._settings = { ...settings };
   }
 }
@@ -138,13 +139,16 @@ export class MockWatchQueueService {
     return false;
   };
 
-  restoreFromSession = (): boolean => {
+  restoreFromSession = (id?: string): boolean => {
     const saved = sessionStorage.getItem('watch-queue');
     if (saved) {
       try {
         const data = JSON.parse(saved);
-        this._buffer = data.buffer || [];
-        this._cursor = data.cursor || 0;
+        const buffer = data.buffer || [];
+        const cursor = id ? buffer.findIndex((g: any) => g.id === id) : data.cursor || 0;
+        if (cursor < 0) return false;
+        this._buffer = buffer;
+        this._cursor = cursor < buffer.length ? cursor : 0;
         this._current = this._buffer[this._cursor] || null;
         this._syncSignals();
         return true;
@@ -215,10 +219,10 @@ export class MockRedgifsApiService {
   });
 
   proxyUrl = (url: string): string =>
-    url.replace('https://media.redgifs.com', '/cdn');
+    url?.replace('https://media.redgifs.com', '/cdn') ?? '';
 
-  proxyUserpicUrl = (url: string): string =>
-    url.replace('https://userpic.redgifs.com', '/userpic') || 'assets/default-avatar.svg';
+  proxyUserpicUrl = (url?: string | null): string =>
+    url?.replace('https://userpic.redgifs.com', '/userpic') || 'assets/default-avatar.svg';
 
   cachedMediaUrl = async (url: string): Promise<string> =>
     this.proxyUrl(url);

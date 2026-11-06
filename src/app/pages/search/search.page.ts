@@ -7,13 +7,13 @@ import { RedgifsApiService } from '../../services/redgifs-api.service';
 import { SettingsService } from '../../services/settings.service';
 import { WatchQueueService } from '../../services/watch-queue.service';
 import { searchFeedGenerator } from '../../services/feed-generators';
+import { navigateToGif } from '../../services/gif-navigation';
 import { Gif, TagSuggestion, User } from '../../models/gif.model';
 
 import { IonAvatar, IonBadge, IonButton, IonCard, IonCardContent, IonCardHeader, IonCardTitle, IonChip, IonContent, IonHeader, IonIcon, IonItem, IonLabel, IonList, IonSearchbar, IonSegment, IonSegmentButton, IonSpinner, IonToolbar } from '@ionic/angular/standalone';
 
 import { GifCardComponent } from '../../components/gif-card/gif-card.component';
 import { SkeletonCardComponent } from '../../components/skeleton-card/skeleton-card.component';
-import { JsonPipe } from '@angular/common';
 
 @Component({
     selector: 'app-search',
@@ -23,7 +23,7 @@ import { JsonPipe } from '@angular/common';
     IonAvatar, IonBadge, IonButton, IonCard, IonCardContent, IonCardHeader, IonCardTitle, IonChip, IonContent, IonHeader, IonIcon, IonItem, IonLabel, IonList, IonSearchbar, IonSegment, IonSegmentButton, IonToolbar,
     GifCardComponent,
     SkeletonCardComponent,
-    RouterLink,
+    RouterLink
 ],
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
@@ -60,7 +60,7 @@ export class SearchPage implements OnInit, OnDestroy {
     staleTime: 1000 * 60 * 2,
   }));
 
-
+  
   readonly results = computed(() => this.searchResultQuery.data()?.gifs ?? []);
   readonly relatedUsers = computed(() => this.searchResultQuery.data()?.users ?? []);
   readonly relatedTags = computed(() => this.searchResultQuery.data()?.tags ?? []);
@@ -113,16 +113,12 @@ export class SearchPage implements OnInit, OnDestroy {
     const q = (value ?? this.query()).trim();
     if (!q) return;
     this.hasSearched = true;
-    // if (this.searchQuery() !== q) {
-      // this.results = [];
-      // this.relatedUsers = [];
-      // this.relatedTags = [];
-      // this.loading = true;
-    // }
     this.suggestions = [];
     this.suggestSubject.next('');
-    this.searchTypeSig.set(this.searchType());
-    this.searchQuery.set(q);
+    if (this.searchQuery() !== q || this.searchTypeSig() !== this.searchType()) {
+      this.searchTypeSig.set(this.searchType());
+      this.searchQuery.set(q);
+    }
     this.router.navigate(['/search', q], { replaceUrl: true });
   }
 
@@ -148,17 +144,12 @@ export class SearchPage implements OnInit, OnDestroy {
     this.search();
   }
 
-  goToTag(tag: string): void {
-    this.router.navigate(['/search', tag]);
-  }
-
   onCardClick(gifId: string, index: number): void {
-    if (this.ss.get().storiesNavigation) {
-      this.watchQueue.setQueue(this.results(), index, searchFeedGenerator(this.api, this.query(), this.searchType()));
-      this.router.navigate(['/stories', gifId]);
-    } else {
-      this.router.navigate(['/watch', gifId]);
-    }
+    navigateToGif(
+      { router: this.router, settings: this.ss, queue: this.watchQueue },
+      gifId, index, this.results(),
+      searchFeedGenerator(this.api, this.query(), this.searchType()),
+    );
   }
 
   onCreatorClick(username: string): void {

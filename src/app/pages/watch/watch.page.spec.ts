@@ -90,22 +90,18 @@ describe('WatchPage', () => {
   });
 
   describe('ngOnInit', () => {
-    it('should set id from route param and track view', async () => {
+    it('should set id from route param', async () => {
       await initModule(makeActivatedRoute('test-gif-123'));
       const page = createFixture().componentInstance;
-      vi.spyOn(page.trackViewMutation, 'mutate');
       page.ngOnInit();
       expect((page as any).id()).toBe('test-gif-123');
-      expect(page.trackViewMutation.mutate).toHaveBeenCalledWith('test-gif-123');
     });
 
     it('should handle null route param gracefully', async () => {
       await initModule(makeActivatedRoute(null));
       const page = createFixture().componentInstance;
-      vi.spyOn(page.trackViewMutation, 'mutate');
       page.ngOnInit();
       expect((page as any).id()).toBe('');
-      expect(page.trackViewMutation.mutate).not.toHaveBeenCalled();
     });
   });
 
@@ -128,17 +124,6 @@ describe('WatchPage', () => {
       (page as any).router = { navigate: routerSpy };
       page.goToCreator();
       expect(routerSpy).not.toHaveBeenCalled();
-    });
-  });
-
-  describe('onDuration', () => {
-    beforeEach(async () => await initModule());
-
-    it('should call trackDurationMutation', () => {
-      const page = createFixture().componentInstance;
-      vi.spyOn(page.trackDurationMutation, 'mutate');
-      page.onDuration({ gifId: 'test', duration: 5000 });
-      expect(page.trackDurationMutation.mutate).toHaveBeenCalledWith({ gifId: 'test', duration: 5000 });
     });
   });
 

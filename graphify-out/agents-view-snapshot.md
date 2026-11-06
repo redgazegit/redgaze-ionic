@@ -1,0 +1,375 @@
+- generic [ref=e2]:
+  - banner [ref=e3]:
+    - generic [ref=e4]:
+      - button "Toggle sidebar" [ref=e5] [cursor=pointer]
+      - button "AgentsView" [ref=e7] [cursor=pointer]
+      - button "Filter projects..." [ref=e17] [cursor=pointer]:
+        - generic [ref=e18]: All Projects
+    - navigation "Primary navigation" [ref=e21]:
+      - 'combobox "Primary navigation: Insights" [ref=e23] [cursor=pointer]':
+        - generic [ref=e24]: Insights
+    - button "Search sessions... Ctrl K" [ref=e28] [cursor=pointer]:
+      - generic [ref=e30]: Search sessions...
+      - generic "Ctrl K" [ref=e31]: CtrlK
+    - generic [ref=e33]:
+      - button "Sync sessions" [ref=e34] [cursor=pointer]
+      - button "Import conversations" [ref=e36] [cursor=pointer]
+      - button "Toggle theme" [ref=e39] [cursor=pointer]
+      - button "Settings" [ref=e41] [cursor=pointer]
+      - button "Keyboard shortcuts" [ref=e43] [cursor=pointer]: "?"
+  - generic [ref=e45]:
+    - banner [ref=e46]:
+      - button "Last year" [ref=e48] [cursor=pointer]
+      - generic [ref=e54]:
+        - button "Filter projects..." [ref=e56] [cursor=pointer]:
+          - generic [ref=e57]: All Projects
+        - button "Filter agents..." [ref=e61] [cursor=pointer]:
+          - generic [ref=e62]: All Agents
+        - generic [ref=e65]:
+          - generic [ref=e66]: Session scope
+          - button "Filter scopes..." [ref=e68] [cursor=pointer]:
+            - generic [ref=e69]: No automated
+      - button "Refresh insights" [ref=e72] [cursor=pointer]
+    - main [ref=e75]:
+      - region [ref=e76]:
+        - generic [ref=e77]:
+          - generic [ref=e78]:
+            - generic [ref=e79]:
+              - generic [ref=e80]: Rule-based
+              - generic [ref=e81]: Next actions
+            - heading "Deterministic Recommendations" [level=2] [ref=e82]
+          - paragraph [ref=e83]:
+            - text: Deterministic sections are computed from session data, while generated insights are separate context text.
+            - link "Read Insights docs" [ref=e84] [cursor=pointer]:
+              - /url: https://www.agentsview.io/insights/
+        - generic [ref=e152]:
+          - article [ref=e153]:
+            - generic [ref=e154]: Rule-based
+            - strong [ref=e155]: Open the linked examples before changing prompts; tune only signals with poor outcome lift.
+            - paragraph [ref=e156]: 49 of 262 sessions have this deterministic pattern.
+          - article [ref=e157]:
+            - generic [ref=e158]: Rule-based
+            - strong [ref=e159]: Split or summarize work before context pressure and mid-task compactions accumulate.
+            - paragraph [ref=e160]: 64 of 262 sessions have this deterministic pattern.
+          - article [ref=e161]:
+            - generic [ref=e162]: Rule-based
+            - strong [ref=e163]: Review errored and abandoned workflows before tuning less severe prompt signals.
+            - paragraph [ref=e164]: 6 of 262 sessions have this deterministic pattern.
+          - article [ref=e165]:
+            - generic [ref=e166]: Rule-based
+            - strong [ref=e167]: Inspect sessions with repeated failures or retries and fix brittle tool-use paths.
+            - paragraph [ref=e168]: 2 of 262 sessions have this deterministic pattern.
+      - region [ref=e88]:
+        - generic [ref=e89]:
+          - generic [ref=e90]:
+            - generic [ref=e91]:
+              - generic [ref=e92]: Rule-based
+              - generic [ref=e93]: Scored facts
+            - heading "Quality Patterns" [level=2] [ref=e94]
+          - paragraph [ref=e95]: Deterministic counts from persisted session signals for Jul 25 to Jul 24.
+        - generic [ref=e169]:
+          - article [ref=e170]:
+            - generic [ref=e171]: Average score
+            - strong [ref=e172]: "98"
+            - generic [ref=e173]: Grade A
+          - article [ref=e174]:
+            - generic [ref=e175]: Scored sessions
+            - strong [ref=e176]: "256"
+            - generic [ref=e177]: 6 unscored
+          - article [ref=e178]:
+            - generic [ref=e179]: Low quality
+            - strong [ref=e180]: "1"
+            - generic [ref=e181]: D/F graded sessions
+          - article [ref=e182]:
+            - generic [ref=e183]: Prompt signals
+            - strong [ref=e184]: "262"
+            - generic [ref=e185]: sessions computed
+        - generic "Score distribution" [ref=e186]:
+          - generic [ref=e187]:
+            - generic [ref=e188]: A
+            - strong [ref=e191]: "231"
+          - generic [ref=e192]:
+            - generic [ref=e193]: B
+            - strong [ref=e196]: "24"
+          - generic [ref=e197]:
+            - generic [ref=e198]: D
+            - strong [ref=e201]: "1"
+        - generic [ref=e202]:
+          - article [ref=e203]:
+            - generic [ref=e204]:
+              - generic [ref=e205]:
+                - heading "Prompt maturity" [level=3] [ref=e206]
+                - paragraph [ref=e207]: Task framing and acceptance evidence. Short prompts are context only.
+              - generic [ref=e208]: Warning
+            - generic [ref=e209]:
+              - strong [ref=e210]: 49 of 262 sessions
+              - generic [ref=e211]: 19% affected
+            - generic [ref=e212]:
+              - button "Short task starts 51 36 sessions 8.3% incomplete" [ref=e213] [cursor=pointer]:
+                - generic [ref=e214]: Short task starts
+                - strong [ref=e215]: "51"
+                - emphasis [ref=e216]: 36 sessions
+                - generic [ref=e217]: 8.3% incomplete
+              - button "Unstructured starts 26 26 sessions 19.3x incomplete" [ref=e218] [cursor=pointer]:
+                - generic [ref=e219]: Unstructured starts
+                - strong [ref=e220]: "26"
+                - emphasis [ref=e221]: 26 sessions
+                - generic [ref=e222]: 19.3x incomplete
+              - button "Missing success criteria 49 49 sessions 0.0x incomplete" [ref=e223] [cursor=pointer]:
+                - generic [ref=e224]: Missing success criteria
+                - strong [ref=e225]: "49"
+                - emphasis [ref=e226]: 49 sessions
+                - generic [ref=e227]: 0.0x incomplete
+              - button "Missing targeted verification path 33 33 sessions 0.0x incomplete" [ref=e228] [cursor=pointer]:
+                - generic [ref=e229]: Missing targeted verification path
+                - strong [ref=e230]: "33"
+                - emphasis [ref=e231]: 33 sessions
+                - generic [ref=e232]: 0.0x incomplete
+              - button "Repeated prompts 90 23 sessions 5.4x incomplete" [ref=e233] [cursor=pointer]:
+                - generic [ref=e234]: Repeated prompts
+                - strong [ref=e235]: "90"
+                - emphasis [ref=e236]: 23 sessions
+                - generic [ref=e237]: 5.4x incomplete
+            - 'generic "Prompt maturity: Score-pressure proxy" [ref=e238]':
+              - generic [ref=e239]: Score-pressure proxy
+              - 'generic "Jun 29: 10 points below 100 average score" [ref=e240]'
+              - 'generic "Jul 1: 7 points below 100 average score" [ref=e241]'
+              - 'generic "Jul 2: 0 points below 100 average score" [ref=e242]'
+              - 'generic "Jul 3: 10 points below 100 average score" [ref=e243]'
+              - 'generic "Jul 4: 6 points below 100 average score" [ref=e244]'
+              - 'generic "Jul 5: 17 points below 100 average score" [ref=e245]'
+              - 'generic "Jul 6: 7 points below 100 average score" [ref=e246]'
+              - 'generic "Jul 11: 2 points below 100 average score" [ref=e247]'
+              - 'generic "Jul 14: 1 points below 100 average score" [ref=e248]'
+              - 'generic "Jul 15: 1 points below 100 average score" [ref=e249]'
+              - 'generic "Jul 17: 10 points below 100 average score" [ref=e250]'
+              - 'generic "Jul 18: 16 points below 100 average score" [ref=e251]'
+              - 'generic "Jul 21: 0 points below 100 average score" [ref=e252]'
+              - 'generic "Jul 22: 0 points below 100 average score" [ref=e253]'
+              - 'generic "Jul 23: 1 points below 100 average score" [ref=e254]'
+              - 'generic "Jul 24: 4 points below 100 average score" [ref=e255]'
+            - paragraph [ref=e256]: Warning means at least 18% of computed sessions fire the pattern. Weak prompt-only markers do not set severity by themselves.
+            - generic [ref=e257]:
+              - generic [ref=e258]: Comparison groups
+              - generic [ref=e259]:
+                - generic [ref=e260]: vscode-copilot
+                - emphasis [ref=e261]: 2 sessions, 50% completed, 0.0 avg failures
+              - generic [ref=e262]:
+                - generic [ref=e263]: opencode
+                - emphasis [ref=e264]: 260 sessions, 94% completed, 0.0 avg failures
+          - article [ref=e265]:
+            - generic [ref=e266]:
+              - generic [ref=e267]:
+                - heading "Context health" [level=3] [ref=e268]
+                - paragraph [ref=e269]: Code-context gaps, compactions, mid-task context loss, and high context pressure.
+              - generic [ref=e270]: Warning
+            - generic [ref=e271]:
+              - strong [ref=e272]: 64 of 262 sessions
+              - generic [ref=e273]: 24% affected
+            - generic [ref=e274]:
+              - button "Sessions with compaction 64 64 sessions 6.2x incomplete" [ref=e275] [cursor=pointer]:
+                - generic [ref=e276]: Sessions with compaction
+                - strong [ref=e277]: "64"
+                - emphasis [ref=e278]: 64 sessions
+                - generic [ref=e279]: 6.2x incomplete
+              - button "Mid-task compactions 0 0 sessions No affected sessions" [ref=e280] [cursor=pointer]:
+                - generic [ref=e281]: Mid-task compactions
+                - strong [ref=e282]: "0"
+                - emphasis [ref=e283]: 0 sessions
+                - generic [ref=e284]: No affected sessions
+              - button "High context pressure 0 0 sessions No affected sessions" [ref=e285] [cursor=pointer]:
+                - generic [ref=e286]: High context pressure
+                - strong [ref=e287]: "0"
+                - emphasis [ref=e288]: 0 sessions
+                - generic [ref=e289]: No affected sessions
+              - button "Missing code context 3 3 sessions 0.0x incomplete" [ref=e290] [cursor=pointer]:
+                - generic [ref=e291]: Missing code context
+                - strong [ref=e292]: "3"
+                - emphasis [ref=e293]: 3 sessions
+                - generic [ref=e294]: 0.0x incomplete
+            - 'generic "Context health: Score-pressure proxy" [ref=e295]':
+              - generic [ref=e296]: Score-pressure proxy
+              - 'generic "Jun 29: 10 points below 100 average score" [ref=e297]'
+              - 'generic "Jul 1: 7 points below 100 average score" [ref=e298]'
+              - 'generic "Jul 2: 0 points below 100 average score" [ref=e299]'
+              - 'generic "Jul 3: 10 points below 100 average score" [ref=e300]'
+              - 'generic "Jul 4: 6 points below 100 average score" [ref=e301]'
+              - 'generic "Jul 5: 17 points below 100 average score" [ref=e302]'
+              - 'generic "Jul 6: 7 points below 100 average score" [ref=e303]'
+              - 'generic "Jul 11: 2 points below 100 average score" [ref=e304]'
+              - 'generic "Jul 14: 1 points below 100 average score" [ref=e305]'
+              - 'generic "Jul 15: 1 points below 100 average score" [ref=e306]'
+              - 'generic "Jul 17: 10 points below 100 average score" [ref=e307]'
+              - 'generic "Jul 18: 16 points below 100 average score" [ref=e308]'
+              - 'generic "Jul 21: 0 points below 100 average score" [ref=e309]'
+              - 'generic "Jul 22: 0 points below 100 average score" [ref=e310]'
+              - 'generic "Jul 23: 1 points below 100 average score" [ref=e311]'
+              - 'generic "Jul 24: 4 points below 100 average score" [ref=e312]'
+            - paragraph [ref=e313]: Warning means at least 18% of computed sessions fire the pattern.
+            - generic [ref=e314]:
+              - generic [ref=e315]: Comparison groups
+              - generic [ref=e316]:
+                - generic [ref=e317]: unknown
+                - emphasis [ref=e318]: 220 sessions, 96% completed, 0.0 avg failures
+              - generic [ref=e319]:
+                - generic [ref=e320]: ionic_app
+                - emphasis [ref=e321]: 18 sessions, 72% completed, 0.0 avg failures
+              - generic [ref=e322]:
+                - generic [ref=e323]: NuvioTV
+                - emphasis [ref=e324]: 8 sessions, 100% completed, 0.0 avg failures
+          - article [ref=e325]:
+            - generic [ref=e326]:
+              - generic [ref=e327]:
+                - heading "Workflow hygiene" [level=3] [ref=e328]
+                - paragraph [ref=e329]: Errored, abandoned, frustrated, and repeated failing tool-cycle sessions.
+              - generic [ref=e330]: Watch
+            - generic [ref=e331]:
+              - strong [ref=e332]: 6 of 262 sessions
+              - generic [ref=e333]: 2% affected
+            - generic [ref=e334]:
+              - button "Errored outcomes 0 0 sessions Outcome cohort" [ref=e335] [cursor=pointer]:
+                - generic [ref=e336]: Errored outcomes
+                - strong [ref=e337]: "0"
+                - emphasis [ref=e338]: 0 sessions
+                - generic [ref=e339]: Outcome cohort
+              - button "Abandoned outcomes 2 2 sessions Outcome cohort" [ref=e340] [cursor=pointer]:
+                - generic [ref=e341]: Abandoned outcomes
+                - strong [ref=e342]: "2"
+                - emphasis [ref=e343]: 2 sessions
+                - generic [ref=e344]: Outcome cohort
+              - button "Completed outcomes 246 246 sessions Outcome cohort" [ref=e345] [cursor=pointer]:
+                - generic [ref=e346]: Completed outcomes
+                - strong [ref=e347]: "246"
+                - emphasis [ref=e348]: 246 sessions
+                - generic [ref=e349]: Outcome cohort
+              - button "Repeated failing tool cycles 0 0 sessions No affected sessions" [ref=e350] [cursor=pointer]:
+                - generic [ref=e351]: Repeated failing tool cycles
+                - strong [ref=e352]: "0"
+                - emphasis [ref=e353]: 0 sessions
+                - generic [ref=e354]: No affected sessions
+              - button "Frustration markers 8 6 sessions 20.9x incomplete" [ref=e355] [cursor=pointer]:
+                - generic [ref=e356]: Frustration markers
+                - strong [ref=e357]: "8"
+                - emphasis [ref=e358]: 6 sessions
+                - generic [ref=e359]: 20.9x incomplete
+            - 'generic "Workflow hygiene: Interrupted sessions" [ref=e360]':
+              - generic [ref=e361]: Interrupted sessions
+              - 'generic "Jun 29: 1 errored or abandoned sessions" [ref=e362]'
+              - 'generic "Jul 1: 0 errored or abandoned sessions" [ref=e363]'
+              - 'generic "Jul 2: 0 errored or abandoned sessions" [ref=e364]'
+              - 'generic "Jul 3: 0 errored or abandoned sessions" [ref=e365]'
+              - 'generic "Jul 4: 0 errored or abandoned sessions" [ref=e366]'
+              - 'generic "Jul 5: 0 errored or abandoned sessions" [ref=e367]'
+              - 'generic "Jul 6: 0 errored or abandoned sessions" [ref=e368]'
+              - 'generic "Jul 11: 0 errored or abandoned sessions" [ref=e369]'
+              - 'generic "Jul 14: 0 errored or abandoned sessions" [ref=e370]'
+              - 'generic "Jul 15: 0 errored or abandoned sessions" [ref=e371]'
+              - 'generic "Jul 17: 0 errored or abandoned sessions" [ref=e372]'
+              - 'generic "Jul 18: 0 errored or abandoned sessions" [ref=e373]'
+              - 'generic "Jul 21: 0 errored or abandoned sessions" [ref=e374]'
+              - 'generic "Jul 22: 0 errored or abandoned sessions" [ref=e375]'
+              - 'generic "Jul 23: 0 errored or abandoned sessions" [ref=e376]'
+              - 'generic "Jul 24: 0 errored or abandoned sessions" [ref=e377]'
+            - paragraph [ref=e378]: Watch means the pattern is present but below the warning threshold.
+            - generic [ref=e379]:
+              - generic [ref=e380]: Comparison groups
+              - generic [ref=e381]:
+                - generic [ref=e382]: vscode-copilot
+                - emphasis [ref=e383]: 2 sessions, 50% completed, 0.0 avg failures
+              - generic [ref=e384]:
+                - generic [ref=e385]: opencode
+                - emphasis [ref=e386]: 260 sessions, 94% completed, 0.0 avg failures
+          - article [ref=e387]:
+            - generic [ref=e388]:
+              - generic [ref=e389]:
+                - heading "Tool reliability" [level=3] [ref=e390]
+                - paragraph [ref=e391]: Tool failures, retries, and edit churn counted directly from session tool events.
+              - generic [ref=e392]: Watch
+            - generic [ref=e393]:
+              - strong [ref=e394]: 2 of 262 sessions
+              - generic [ref=e395]: 1% affected
+            - generic [ref=e396]:
+              - button "Failure signals 0 0 sessions No affected sessions" [ref=e397] [cursor=pointer]:
+                - generic [ref=e398]: Failure signals
+                - strong [ref=e399]: "0"
+                - emphasis [ref=e400]: 0 sessions
+                - generic [ref=e401]: No affected sessions
+              - button "Retries 11 2 sessions 62.5x incomplete" [ref=e402] [cursor=pointer]:
+                - generic [ref=e403]: Retries
+                - strong [ref=e404]: "11"
+                - emphasis [ref=e405]: 2 sessions
+                - generic [ref=e406]: 62.5x incomplete
+              - button "Edit churn 0 0 sessions No affected sessions" [ref=e407] [cursor=pointer]:
+                - generic [ref=e408]: Edit churn
+                - strong [ref=e409]: "0"
+                - emphasis [ref=e410]: 0 sessions
+                - generic [ref=e411]: No affected sessions
+            - 'generic "Tool reliability: Average failure signals" [ref=e412]':
+              - generic [ref=e413]: Average failure signals
+              - 'generic "Jun 29: 0 Average failure signals" [ref=e414]'
+              - 'generic "Jul 1: 0 Average failure signals" [ref=e415]'
+              - 'generic "Jul 2: 0 Average failure signals" [ref=e416]'
+              - 'generic "Jul 3: 0 Average failure signals" [ref=e417]'
+              - 'generic "Jul 4: 0 Average failure signals" [ref=e418]'
+              - 'generic "Jul 5: 0 Average failure signals" [ref=e419]'
+              - 'generic "Jul 6: 0 Average failure signals" [ref=e420]'
+              - 'generic "Jul 11: 0 Average failure signals" [ref=e421]'
+              - 'generic "Jul 14: 0 Average failure signals" [ref=e422]'
+              - 'generic "Jul 15: 0 Average failure signals" [ref=e423]'
+              - 'generic "Jul 17: 0 Average failure signals" [ref=e424]'
+              - 'generic "Jul 18: 0 Average failure signals" [ref=e425]'
+              - 'generic "Jul 21: 0 Average failure signals" [ref=e426]'
+              - 'generic "Jul 22: 0 Average failure signals" [ref=e427]'
+              - 'generic "Jul 23: 0 Average failure signals" [ref=e428]'
+              - 'generic "Jul 24: 0 Average failure signals" [ref=e429]'
+            - paragraph [ref=e430]: Watch means the pattern is present but below the warning threshold.
+            - generic [ref=e431]:
+              - generic [ref=e432]: Comparison groups
+              - generic [ref=e433]:
+                - generic [ref=e434]: unknown
+                - emphasis [ref=e435]: 220 sessions, 96% completed, 0.0 avg failures
+              - generic [ref=e436]:
+                - generic [ref=e437]: ionic_app
+                - emphasis [ref=e438]: 18 sessions, 72% completed, 0.0 avg failures
+              - generic [ref=e439]:
+                - generic [ref=e440]: NuvioTV
+                - emphasis [ref=e441]: 8 sessions, 100% completed, 0.0 avg failures
+      - region [ref=e106]:
+        - generic [ref=e107]:
+          - generic [ref=e108]:
+            - generic [ref=e109]:
+              - generic [ref=e110]: Generated
+              - generic [ref=e111]: Separate from scored facts
+            - heading "Generated Insights Archive" [level=2] [ref=e112]
+          - paragraph [ref=e113]: Saved generated text is shown separately and does not affect deterministic quality scores. Creation remains out of scope for this deterministic phase.
+        - generic [ref=e114]:
+          - generic [ref=e115]:
+            - generic [ref=e116]: Template
+            - button "Filter templates..." [ref=e118] [cursor=pointer]:
+              - generic [ref=e119]: Prompt Maturity
+          - generic [ref=e122]:
+            - generic [ref=e123]: Generator
+            - button "Filter generators..." [ref=e125] [cursor=pointer]:
+              - generic [ref=e126]: Claude
+          - generic [ref=e129]:
+            - generic [ref=e130]: Optional focus
+            - textbox "Optional focus" [ref=e131]:
+              - /placeholder: Narrow the recommendation without changing scored facts
+          - button "Generate" [ref=e132] [cursor=pointer]
+        - generic [ref=e133]:
+          - strong [ref=e134]: No generated insights saved.
+          - generic [ref=e135]: The deterministic dashboard above works without LLM configuration. Generated insight creation is reserved for the generated-insights phase.
+  - contentinfo [ref=e136]:
+    - generic [ref=e138]:
+      - generic [ref=e139]: 262 sessions
+      - generic [ref=e140]: ·
+      - generic [ref=e141]: 16,179 messages
+      - generic [ref=e142]: ·
+      - generic [ref=e143]: 9 projects
+    - generic [ref=e144]:
+      - button "Open performance debug" [ref=e145] [cursor=pointer]:
+        - generic [ref=e147]: Perf
+      - generic [ref=e148]: ·
+      - generic "Jul 24, 01:46 PM" [ref=e149]: synced 1m ago
+      - generic [ref=e150]: ·
+      - button "v0.38.1" [ref=e151] [cursor=pointer]

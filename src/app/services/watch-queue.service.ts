@@ -86,14 +86,16 @@ export class WatchQueueService {
     return true;
   }
 
-  restoreFromSession(): boolean {
+  restoreFromSession(id?: string): boolean {
     try {
       const raw = sessionStorage.getItem('redgaze_watch_queue');
       if (!raw) return false;
       const data = JSON.parse(raw);
       if (!data.buffer?.length) return false;
+      const cursor = id ? data.buffer.findIndex((g: Gif) => g.id === id) : data.cursor;
+      if (cursor < 0) return false;
       this.buffer = data.buffer;
-      this.cursor = data.cursor;
+      this.cursor = cursor < this.buffer.length ? cursor : 0;
       this.gen = null;
       this.generator = null;
       this.prefetchPromise = null;

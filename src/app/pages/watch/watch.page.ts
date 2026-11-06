@@ -1,6 +1,6 @@
 import { Component, OnInit, inject, viewChild, computed, signal, ChangeDetectionStrategy } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { injectQuery, injectMutation } from '@tanstack/angular-query-experimental';
+import { injectQuery } from '@tanstack/angular-query-experimental';
 import { firstValueFrom } from 'rxjs';
 import { RedgifsApiService } from '../../services/redgifs-api.service';
 import { FavoritesService } from '../../services/favorites.service';
@@ -39,28 +39,12 @@ export class WatchPage implements OnInit {
     staleTime: 1000 * 60 * 5,
   }));
 
-  readonly trackViewMutation = injectMutation(() => ({
-    mutationFn: (gifId: string) => firstValueFrom(this.api.trackContentViewed(gifId)),
-  }));
-
-  readonly trackDurationMutation = injectMutation(() => ({
-    mutationFn: ({ gifId, duration }: { gifId: string; duration: number }) =>
-      firstValueFrom(this.api.trackViewedDuration(gifId, duration)),
-  }));
-
   readonly gif = computed(() => this.gifQuery.data());
   readonly loading = computed(() => this.gifQuery.isLoading());
   readonly error = computed(() => this.gifQuery.isError());
 
   ngOnInit(): void {
     this.id.set(this.route.snapshot.paramMap.get('id') || '');
-    if (this.id()) {
-      this.trackViewMutation.mutate(this.id());
-    }
-  }
-
-  onDuration(event: {gifId: string; duration: number}): void {
-    this.trackDurationMutation.mutate(event);
   }
 
   goToCreator(): void {

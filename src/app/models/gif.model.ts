@@ -140,23 +140,6 @@ export interface TempToken {
   agent: string;
 }
 
-export interface ContentViewedEvent {
-  gif: string;
-  event: string;
-  client: string;
-}
-
-export interface ViewedDurationEvent {
-  gif: string;
-  event: string;
-  duration: number;
-  client: string;
-}
-
-export interface RefreshResult {
-  gifs: Gif[];
-}
-
 export interface NicheInfo {
   niche: Niche;
   gifs?: Gif[];
