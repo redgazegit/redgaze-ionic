@@ -15,17 +15,7 @@ export const nativeHttpInterceptor: HttpInterceptorFn = (
 };
 
 async function handleNative(req: HttpRequest<unknown>): Promise<HttpEvent<unknown>> {
-  const headers: Record<string, string> = {};
-  req.headers.keys().forEach(k => { headers[k] = req.headers.get(k) ?? ''; });
-
-  let data = req.body ?? undefined;
-  if (data != null && typeof data === 'object' && !(data instanceof FormData) && !(data instanceof ArrayBuffer) && !(data instanceof Blob) && !(data instanceof URLSearchParams)) {
-    data = JSON.stringify(data);
-    if (headers['Content-Type'] === undefined) {
-      headers['Content-Type'] = 'application/json';
-    }
-  }
-
+  const { headers, data } = prepareRequest(req);
   const arrayBufferResponse = req.responseType === 'arraybuffer';
 
   console.log('[NativeHttp] sending via CapacitorHttp:', req.method, req.url);
@@ -45,6 +35,31 @@ async function handleNative(req: HttpRequest<unknown>): Promise<HttpEvent<unknow
     throw err;
   }
 
+  return toHttpEvent(req, res, arrayBufferResponse);
+}
+
+function prepareRequest(req: HttpRequest<unknown>): { headers: Record<string, string>; data: unknown } {
+  const headers: Record<string, string> = {};
+  req.headers.keys().forEach(k => { headers[k] = req.headers.get(k) ?? ''; });
+
+  let data = req.body ?? undefined;
+  if (isJsonBody(data)) {
+    data = JSON.stringify(data);
+    headers['Content-Type'] ??= 'application/json';
+  }
+
+  return { headers, data };
+}
+
+function isJsonBody(data: unknown): boolean {
+  if (data == null || typeof data !== 'object') return false;
+  return !(data instanceof FormData)
+    && !(data instanceof ArrayBuffer)
+    && !(data instanceof Blob)
+    && !(data instanceof URLSearchParams);
+}
+
+function toHttpEvent(req: HttpRequest<unknown>, res: { status: number; data: unknown; headers?: Record<string, string> }, arrayBufferResponse: boolean): HttpEvent<unknown> {
   const resHeaders = new HttpHeaders((res.headers ?? {}) as Record<string, string>);
 
   if (res.status < 200 || res.status >= 300) {
