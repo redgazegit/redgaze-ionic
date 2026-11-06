@@ -17,7 +17,12 @@ const queryClient = new QueryClient({
     queries: {
       staleTime: 1000 * 60 * 15,
       gcTime: 1000 * 60 * 60 * 24,
-      retry: 3,
+      retry: (failureCount, error) => {
+        // The API service already retries 429s using the delay RedGIFs asks for.
+        // Retrying here too multiplied every rate-limited call into 16 requests.
+        if ((error as { status?: number } | null)?.status === 429) return false;
+        return failureCount < 3;
+      },
       retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 10000),
       refetchOnWindowFocus: false,
     },

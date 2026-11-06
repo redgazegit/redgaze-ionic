@@ -2,7 +2,8 @@ import { CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { GifCardComponent } from './gif-card.component';
 import { FavoritesService } from '../../services/favorites.service';
-import { MockFavoritesService } from '../../testing/service-mocks';
+import { RedgifsApiService } from '../../services/redgifs-api.service';
+import { MockFavoritesService, MockRedgifsApiService } from '../../testing/service-mocks';
 import { fakeGif } from '../../testing/test-utils';
 
 describe('GifCardComponent', () => {
@@ -15,6 +16,7 @@ describe('GifCardComponent', () => {
       imports: [GifCardComponent],
       providers: [
         { provide: FavoritesService, useValue: mockFav },
+        { provide: RedgifsApiService, useValue: new MockRedgifsApiService() },
       ],
       schemas: [CUSTOM_ELEMENTS_SCHEMA],
     }).compileComponents();
@@ -32,9 +34,10 @@ describe('GifCardComponent', () => {
     expect(fixture.componentInstance).toBeTruthy();
   });
 
-  it('should set posterSrc from thumbnail on init', () => {
+  it('should set posterSrc from thumbnail on init', async () => {
     const gif = fakeGif({ urls: { ...fakeGif({}).urls, thumbnail: 'https://media.redgifs.com/test.jpg' } });
     const fixture = createComponent(gif);
+    await fixture.whenStable();
     expect(fixture.componentInstance.posterSrc()).toBe('/cdn/test.jpg');
   });
 
@@ -74,6 +77,6 @@ describe('GifCardComponent', () => {
     const gif = fakeGif({ id: 'fav-check' });
     vi.spyOn(mockFav, 'isFavorite').mockReturnValue(true);
     const fixture = createComponent(gif);
-    expect(fixture.componentInstance.isFav).toBe(true);
+    expect(fixture.componentInstance.isFav()).toBe(true);
   });
 });

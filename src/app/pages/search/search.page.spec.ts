@@ -32,7 +32,7 @@ describe('SearchPage', () => {
     await TestBed.configureTestingModule({
       imports: [SearchPage],
       providers: [
-        provideRouter([]),
+        provideRouter([{ path: 'search/:query', component: SearchPage }]),
         provideAngularQuery(new QueryClient({
           defaultOptions: { queries: { retry: false } }
         })),
@@ -75,12 +75,15 @@ describe('SearchPage', () => {
     beforeEach(async () => await initModule());
 
     it('should set query and fetch suggestions when value exists', () => {
+      vi.useFakeTimers();
       const { page } = createPage();
       vi.spyOn(mockApi, 'getTagSuggestions').mockReturnValue(of([{ text: 'funny cats', type: 'tag', gifs: [] }]));
       page.onSearchInput({ detail: { value: 'funny' } });
+      vi.advanceTimersByTime(300);
       expect(page.query()).toBe('funny');
       expect(mockApi.getTagSuggestions).toHaveBeenCalledWith('funny');
       expect(page.suggestions).toHaveLength(1);
+      vi.useRealTimers();
     });
 
     it('should clear suggestions when value is empty', () => {
@@ -108,7 +111,7 @@ describe('SearchPage', () => {
       (page as any).router = { navigate: routerSpy };
       page.search();
       expect(page.hasSearched).toBe(true);
-      expect(page.loading).toBe(true);
+      expect(page.loading()).toBe(true);
       expect(routerSpy).toHaveBeenCalledWith(['/search', 'cats'], { replaceUrl: true });
     });
 
@@ -132,16 +135,14 @@ describe('SearchPage', () => {
 
     it('should not clear results when same query searched again', () => {
       const { page } = createPage();
-      page.results = [{ id: 'gif-1' } as any];
-      page.relatedUsers = [{ userName: 'user-1' } as any];
-      page.relatedTags = ['tag-1'];
+      vi.spyOn(page.searchResultQuery, 'data', 'get').mockReturnValue(() => ({ gifs: [{ id: 'gif-1' }], page: 1, pages: 1, total: 1 } as any));
       page.searchQuery.set('cats');
       page.query.set('cats');
       const routerSpy = vi.fn();
       (page as any).router = { navigate: routerSpy };
       page.search();
-      expect(page.results).toHaveLength(1);
-      expect(page.loading).toBe(false);
+      expect(page.results()).toHaveLength(1);
+      expect(page.suggestions).toEqual([]);
     });
 
     it('should clear suggestions on search', () => {
@@ -189,11 +190,10 @@ describe('SearchPage', () => {
 
     it('should reset results, hasSearched and query', () => {
       const { page } = createPage();
-      page.results = [{ id: 'test' } as any];
       page.hasSearched = true;
       page.query.set('test');
-      page.onClear();
-      expect(page.results).toEqual([]);
+      page.onClear({ value: 'test' } as any);
+      expect(page.results()).toEqual([]);
       expect(page.hasSearched).toBe(false);
       expect(page.query()).toBe('');
     });
@@ -211,24 +211,12 @@ describe('SearchPage', () => {
     });
   });
 
-  describe('goToTag', () => {
-    beforeEach(async () => await initModule());
-
-    it('should navigate to tag search', () => {
-      const { page } = createPage();
-      const routerSpy = vi.fn();
-      (page as any).router = { navigate: routerSpy };
-      page.goToTag('cats');
-      expect(routerSpy).toHaveBeenCalledWith(['/search', 'cats']);
-    });
-  });
-
   describe('onCardClick', () => {
     beforeEach(async () => await initModule());
 
     it('should navigate to stories when storiesNavigation enabled', () => {
       const { page } = createPage();
-      page.results = [{ id: 'result-1' } as any, { id: 'result-2' } as any];
+      vi.spyOn(page, 'results').mockReturnValue([{ id: 'result-1' } as any, { id: 'result-2' } as any]);
       const routerSpy = vi.fn();
       (page as any).router = { navigate: routerSpy };
       page.onCardClick('result-1', 0);
@@ -238,7 +226,7 @@ describe('SearchPage', () => {
     it('should navigate to watch when storiesNavigation disabled', () => {
       const { page } = createPage();
       mockSettings.update({ storiesNavigation: false });
-      page.results = [{ id: 'result-1' } as any];
+      vi.spyOn(page, 'results').mockReturnValue([{ id: 'result-1' } as any]);
       const routerSpy = vi.fn();
       (page as any).router = { navigate: routerSpy };
       page.onCardClick('result-1', 0);

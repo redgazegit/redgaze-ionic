@@ -7,7 +7,7 @@ import { API_CONFIG } from './api-config';
 import {
   Gif, Creator, User, Niche, TagSuggestion,
   SearchResult, CreatorResult, NicheResult, TempToken,
-  ContentViewedEvent, ViewedDurationEvent, NicheInfo, Tag
+  NicheInfo, Tag
 } from '../models/gif.model';
 
 @Injectable({ providedIn: 'root' })
@@ -111,9 +111,21 @@ export class RedgifsApiService {
   }
 
   private retryAfterMs(err: HttpErrorResponse): number {
-    const seconds = parseInt(err.headers?.get('Retry-After') ?? '5', 10);
-    const secondsWait = Number.isFinite(seconds) ? seconds : 5;
-    return Math.min(secondsWait, 30) * 1000 + 1000;
+    // RedGIFs answers 429 with the wait inside the body and sends no Retry-After:
+    // {"error":{"code":"RateLimited","delay":1161,"subject":"...|gif-search|..."}}
+    const bodyDelay = (err.error as { error?: { delay?: unknown } } | null)?.error?.delay;
+    const headerSeconds = parseInt(err.headers?.get('Retry-After') ?? '', 10);
+
+    let wait: number;
+    if (typeof bodyDelay === 'number' && Number.isFinite(bodyDelay)) {
+      wait = bodyDelay;
+    } else if (Number.isFinite(headerSeconds)) {
+      wait = headerSeconds * 1000;
+    } else {
+      wait = 5000;
+    }
+
+    return Math.min(Math.max(wait, 500), 30000) + 500;
   }
 
   private clearToken(): void {
@@ -212,37 +224,6 @@ export class RedgifsApiService {
     return this.get<{ items: Creator[] }>(
       `/v2/creators/suggest?query=${encodeURIComponent(query)}&count=${count}&order=${order}`
     ).pipe(map(r => r.items));
-  }
-
-  private post<T>(path: string, body: unknown, retries = 0): Observable<T> {
-    return this.ensureAuth().pipe(
-      switchMap(() => this.waitForSlot().pipe(
-        switchMap(() => this.http.post<T>(`${this.config.baseUrl}${path}`, body, { headers: this.headers(), observe: 'response' }).pipe(
-          map(r => { const b = r.body as any; if (b?.error) throw new HttpErrorResponse({ error: b.error, status: r.status, statusText: r.statusText, url: r.url ?? undefined }); return b as T; }),
-          catchError(err => {
-            if (err.status === 429 && this.settings.get().rateLimitEnabled && retries < this.MAX_RETRIES) {
-              this.backoffUntil = Date.now() + this.retryAfterMs(err);
-              return this.post<T>(path, body, retries + 1);
-            }
-            if ((err.status === 401 || err.status === 403) && retries < 1) {
-              this.clearToken();
-              return this.post<T>(path, body, retries + 1);
-            }
-            return throwError(() => err);
-          })
-        ))
-      ))
-    );
-  }
-
-  trackContentViewed(gifId: string, client = 'redgaze-ionic/1.0'): Observable<unknown> {
-    const event: ContentViewedEvent = { gif: gifId, event: 'viewed', client };
-    return this.post('/v2/metrics/gifs', event);
-  }
-
-  trackViewedDuration(gifId: string, durationMs: number, client = 'redgaze-ionic/1.0'): Observable<unknown> {
-    const event: ViewedDurationEvent = { gif: gifId, event: 'duration', duration: durationMs, client };
-    return this.post('/v2/metrics/gifs', event);
   }
 
   getTrendingTags(forceRefresh = false): Observable<Tag[]> {

@@ -3,7 +3,8 @@ import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { FavoritesPage } from './favorites.page';
 import { FavoritesService } from '../../services/favorites.service';
-import { MockFavoritesService } from '../../testing/service-mocks';
+import { RedgifsApiService } from '../../services/redgifs-api.service';
+import { MockFavoritesService, MockRedgifsApiService } from '../../testing/service-mocks';
 import { fakeGif } from '../../testing/test-utils';
 
 describe('FavoritesPage', () => {
@@ -28,6 +29,7 @@ describe('FavoritesPage', () => {
       providers: [
         provideRouter([]),
         { provide: FavoritesService, useValue: mockFav },
+        { provide: RedgifsApiService, useValue: new MockRedgifsApiService() },
       ],
       schemas: [CUSTOM_ELEMENTS_SCHEMA],
     }).compileComponents();
