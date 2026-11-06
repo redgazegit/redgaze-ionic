@@ -62,7 +62,7 @@
       </div>
     </div>
 
-    @if (socialLinks().length) {
+    @if (hasSocialLinks()) {
       <div class="social-links" data-testid="social-links">
         @for (link of socialLinks(); track link) {
           <ion-item [attr.data-testid]="'social-link-' + link.domain" detail href="{{ link.url }}" target="_blank">
@@ -73,14 +73,14 @@
       </div>
     }
 
-    @if (gifs().length === 0 && !loading()) {
+    @if (showEmptyState()) {
       <div class="empty-state">
         <ion-icon name="file-tray-outline"></ion-icon>
         <p>No GIFs from this creator</p>
       </div>
     }
 
-    @if (gifs().length) {
+    @if (hasGifs()) {
       <div class="sort-bar">
         @for (opt of sortOptions; track opt) {
           <ion-chip [color]="sortOrder() === opt.value ? 'primary' : 'medium'" (click)="setSort(opt.value)" [attr.data-testid]="'sort-' + opt.value">

@@ -30,13 +30,13 @@
           <h2>Failed to load feed</h2>
           <ion-button fill="outline" (click)="trendingGifsQuery.refetch(); feedQuery.refetch()">Retry</ion-button>
         </div>
-      } @else if (loading() && gifs().length === 0) {
+      } @else if (showFeedSkeleton()) {
         <div class="skeleton-grid">
           @for (_ of [1,2,3,4,5,6]; track $index) {
             <app-skeleton-card />
           }
         </div>
-      } @else if (gifs().length === 0) {
+      } @else if (showFeedEmpty()) {
         <div class="empty-state">
           <ion-icon name="file-tray-outline"></ion-icon>
           <p>No GIFs in this section</p>

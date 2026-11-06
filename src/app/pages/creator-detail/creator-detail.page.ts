@@ -78,6 +78,10 @@ export class CreatorDetailPage {
   });
   readonly gifs = computed(() => this.gifsQuery.data()?.pages.reduce((acc: Gif[], p) => [...acc, ...p.gifs], [] as Gif[]) ?? []);
   readonly loading = computed(() => this.gifsQuery.isFetching() && this.gifsQuery.data()?.pages.length === 0);
+  readonly hasGifs = computed(() => this.gifs().length > 0);
+  readonly showEmptyState = computed(() => !this.loading() && this.gifs().length === 0);
+  readonly hasSocialLinks = computed(() => this.socialLinks().length > 0);
+
   readonly socialLinks = computed(() => {
     const links = this.user()?.links || [];
     const seen = new Set<string>();
