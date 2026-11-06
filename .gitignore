@@ -86,7 +86,8 @@ ng-serve.log*
 # Agent skills (local tooling, not project code)
 .mcp.json
 .agents/
-.opencode/skills/
+.opencode/
+.commandcode/
 
 # Cloudflare Wrangler (build artifacts, local cache)
 .wrangler/
